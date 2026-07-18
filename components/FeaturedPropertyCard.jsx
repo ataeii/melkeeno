@@ -10,6 +10,10 @@ import {
 
 const FeaturedPropertyCard = ({ property }) => {
   const getRateDisplay = () => {
+    if (property.listing_type === 'buy') {
+      return property.sale_price ? property.sale_price.toLocaleString() : null;
+    }
+
     const { rates } = property;
 
     if (rates.monthly) {
@@ -18,6 +22,8 @@ const FeaturedPropertyCard = ({ property }) => {
       return `${rates.weekly.toLocaleString()}/wk`;
     } else if (rates.nightly) {
       return `${rates.nightly.toLocaleString()}/night`;
+    } else if (property.deposit) {
+      return `Deposit: ${property.deposit.toLocaleString()}`;
     }
   };
 

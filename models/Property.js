@@ -38,7 +38,6 @@ const PropertySchema = new Schema(
     },
     baths: {
       type: Number,
-      required: true,
     },
     square_feet: {
       type: Number,
@@ -49,6 +48,17 @@ const PropertySchema = new Schema(
         type: String,
       },
     ],
+    listing_type: {
+      type: String,
+      enum: ['rent', 'buy'],
+      default: 'rent',
+    },
+    sale_price: {
+      type: Number,
+    },
+    deposit: {
+      type: Number,
+    },
     rates: {
       nightly: {
         type: Number,

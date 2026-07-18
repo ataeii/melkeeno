@@ -36,9 +36,20 @@ const getSearchResults = async (location, propertyType) => {
   return JSON.parse(JSON.stringify(properties));
 };
 
-const formatRate = (rates) => {
-  const rate = rates?.nightly || rates?.weekly || rates?.monthly;
-  return rate ? rate.toLocaleString() : 'تماس بگیرید';
+const formatToman = (n) => {
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + ' میلیارد تومان';
+  if (n >= 1e6) return (n / 1e6).toFixed(0) + ' میلیون تومان';
+  return n.toLocaleString() + ' تومان';
+};
+
+const formatRate = (property) => {
+  if (property.listing_type === 'buy') {
+    return property.sale_price ? formatToman(property.sale_price) : 'تماس بگیرید';
+  }
+  const rate = property.rates?.monthly || property.rates?.weekly || property.rates?.nightly;
+  if (rate) return formatToman(rate) + '/ماه';
+  if (property.deposit) return 'رهن کامل: ' + formatToman(property.deposit);
+  return 'تماس بگیرید';
 };
 
 const SearchResultsPage = async ({ searchParams }) => {
@@ -93,7 +104,7 @@ const SearchResultsPage = async ({ searchParams }) => {
                       </div>
                     )}
                     <div className='absolute top-2 right-2 bg-white px-3 py-1 rounded-lg text-blue-700 font-bold text-sm shadow'>
-                      {formatRate(property.rates)}
+                      {formatRate(property)}
                     </div>
                   </div>
                   <div className='p-3'>
