@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
+import { FaBars, FaTimes } from 'react-icons/fa';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -10,67 +11,66 @@ const Navbar = () => {
   const { data: session, status } = useSession();
 
   return (
-    <nav className='bg-blue-700 border-b border-blue-500'>
-      <div className='mx-auto max-w-7xl px-2 sm:px-6 lg:px-8'>
-        <div className='relative flex h-16 items-center justify-between' dir='rtl'>
+    <nav className='sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm'>
+      <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+        <div className='grid grid-cols-3 items-center h-16' dir='rtl'>
+          {/* Nav links (right side in RTL) */}
+          <div className='hidden md:flex items-center gap-1'>
+            <Link
+              href='/properties'
+              className={`${
+                pathname === '/properties' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+              } hover:bg-blue-50 hover:text-blue-600 rounded-full px-4 py-2 text-sm font-semibold transition-colors`}
+            >
+              آگهی‌ها
+            </Link>
+            <Link
+              href='/family-finder'
+              className={`${
+                pathname === '/family-finder' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+              } hover:bg-blue-50 hover:text-blue-600 rounded-full px-4 py-2 text-sm font-semibold transition-colors`}
+            >
+              پیشنهاد محله
+            </Link>
+          </div>
+
           {/* Mobile menu button */}
-          <div className='absolute inset-y-0 right-0 flex items-center md:hidden'>
+          <div className='flex md:hidden items-center'>
             <button
               type='button'
               id='mobile-dropdown-button'
-              className='relative inline-flex items-center justify-center rounded-md p-2 text-gray-200 hover:bg-blue-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white'
+              className='inline-flex items-center justify-center rounded-full p-2 text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500'
               aria-controls='mobile-menu'
               aria-expanded={isMobileMenuOpen}
               onClick={() => setIsMobileMenuOpen((prev) => !prev)}
             >
               <span className='sr-only'>باز کردن منو</span>
-              <svg
-                className='block h-6 w-6'
-                fill='none'
-                viewBox='0 0 24 24'
-                strokeWidth='1.5'
-                stroke='currentColor'
-                aria-hidden='true'
-              >
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  d='M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5'
-                />
-              </svg>
+              {isMobileMenuOpen ? (
+                <FaTimes className='h-5 w-5' />
+              ) : (
+                <FaBars className='h-5 w-5' />
+              )}
             </button>
           </div>
 
-          {/* Logo + desktop nav */}
-          <div className='flex flex-1 items-center justify-start md:items-stretch md:justify-start'>
-            <Link className='flex flex-shrink-0 items-center' href='/'>
-              <span className='text-white text-2xl font-bold tracking-wide'>زمین</span>
+          {/* Logo — always centered */}
+          <div className='flex justify-center'>
+            <Link href='/' className='flex items-center'>
+              <span className='text-blue-600 text-2xl font-extrabold tracking-tight'>
+                ملکینو
+              </span>
             </Link>
-
-            {/* Desktop Menu */}
-            <div className='hidden md:mr-6 md:block'>
-              <div className='flex gap-1'>
-                <Link
-                  href='/properties'
-                  className={`${
-                    pathname === '/properties' ? 'bg-blue-900' : ''
-                  } text-white hover:bg-blue-800 hover:text-white rounded-md px-4 py-2 text-sm font-medium`}
-                >
-                  آگهی‌ها
-                </Link>
-              </div>
-            </div>
           </div>
 
-          {/* Desktop auth */}
-          <div className='hidden md:flex md:items-center'>
+          {/* Auth (left side in RTL) */}
+          <div className='hidden md:flex items-center justify-end gap-2'>
             {status !== 'loading' &&
               (session ? (
                 <div className='flex items-center gap-3'>
-                  <span className='text-white text-sm'>{session.user.phone}</span>
+                  <span className='text-gray-500 text-sm'>{session.user.phone}</span>
                   <button
                     onClick={() => signOut({ callbackUrl: '/' })}
-                    className='text-white hover:bg-blue-800 hover:text-white rounded-md px-4 py-2 text-sm font-medium'
+                    className='text-gray-600 hover:bg-gray-100 rounded-full px-4 py-2 text-sm font-semibold transition-colors'
                   >
                     خروج
                   </button>
@@ -78,7 +78,7 @@ const Navbar = () => {
               ) : (
                 <Link
                   href='/login'
-                  className='text-white hover:bg-blue-800 hover:text-white rounded-md px-4 py-2 text-sm font-medium'
+                  className='bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 py-2 text-sm font-semibold transition-colors'
                 >
                   ورود
                 </Link>
@@ -89,16 +89,25 @@ const Navbar = () => {
 
       {/* Mobile menu */}
       {isMobileMenuOpen && (
-        <div id='mobile-menu' dir='rtl'>
-          <div className='space-y-1 px-3 pb-3 pt-2'>
+        <div id='mobile-menu' dir='rtl' className='md:hidden border-t border-gray-100'>
+          <div className='space-y-1 px-4 pb-3 pt-2'>
             <Link
               href='/properties'
               className={`${
-                pathname === '/properties' ? 'bg-blue-900' : ''
-              } text-white block rounded-md px-3 py-2 text-base font-medium hover:bg-blue-800`}
+                pathname === '/properties' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+              } block rounded-lg px-3 py-2 text-base font-semibold hover:bg-blue-50 hover:text-blue-600`}
               onClick={() => setIsMobileMenuOpen(false)}
             >
               آگهی‌ها
+            </Link>
+            <Link
+              href='/family-finder'
+              className={`${
+                pathname === '/family-finder' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+              } block rounded-lg px-3 py-2 text-base font-semibold hover:bg-blue-50 hover:text-blue-600`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              پیشنهاد محله
             </Link>
             {status !== 'loading' &&
               (session ? (
@@ -107,7 +116,7 @@ const Navbar = () => {
                     setIsMobileMenuOpen(false);
                     signOut({ callbackUrl: '/' });
                   }}
-                  className='text-white block rounded-md px-3 py-2 text-base font-medium hover:bg-blue-800 w-full text-right'
+                  className='text-gray-600 block rounded-lg px-3 py-2 text-base font-semibold hover:bg-gray-100 w-full text-right'
                 >
                   خروج ({session.user.phone})
                 </button>
@@ -115,7 +124,7 @@ const Navbar = () => {
                 <Link
                   href='/login'
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className='text-white block rounded-md px-3 py-2 text-base font-medium hover:bg-blue-800'
+                  className='text-blue-600 block rounded-lg px-3 py-2 text-base font-semibold hover:bg-blue-50'
                 >
                   ورود
                 </Link>
