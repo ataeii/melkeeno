@@ -76,6 +76,13 @@ const PropertyCard = ({ property, onClick, className }) => {
           </p>
         )}
 
+        {/* Match commute time (family finder results only) */}
+        {property.match_score_min != null && (
+          <p className='text-xs text-blue-700 bg-blue-50 rounded-full px-2 py-1 mb-2 inline-block'>
+            میانگین زمان تردد: {property.match_score_min} دقیقه
+          </p>
+        )}
+
         {/* Specs row */}
         <div className='flex items-center gap-3 text-gray-600 text-xs mb-2'>
           {property.area_m2 && (
