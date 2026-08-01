@@ -17,7 +17,7 @@ function formatPrice(price) {
   return price.toLocaleString();
 }
 
-const SearchMap = ({ listings = [], activeToken, onMarkerClick }) => {
+const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, onMarkerHover }) => {
   const mapRef = useRef(null);
   const [popupInfo, setPopupInfo] = useState(null);
 
@@ -69,6 +69,7 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick }) => {
     >
       {validListings.map((listing) => {
         const isActive = activeToken === listing.token;
+        const isHovered = hoveredToken === listing.token;
         return (
           <Marker
             key={listing.token}
@@ -81,8 +82,10 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick }) => {
             }}
           >
             <div
+              onMouseEnter={() => onMarkerHover && onMarkerHover(listing.token)}
+              onMouseLeave={() => onMarkerHover && onMarkerHover(null)}
               style={{
-                background: isActive ? '#f59e0b' : '#1e3a5f',
+                background: isActive ? '#f59e0b' : isHovered ? '#2563eb' : '#1e3a5f',
                 color: 'white',
                 padding: '8px 14px',
                 borderRadius: '20px',
@@ -91,12 +94,14 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick }) => {
                 cursor: 'pointer',
                 boxShadow: isActive
                   ? '0 4px 12px rgba(245,158,11,0.6)'
+                  : isHovered
+                  ? '0 4px 12px rgba(37,99,235,0.6)'
                   : '0 2px 8px rgba(0,0,0,0.3)',
                 border: '2px solid white',
                 whiteSpace: 'nowrap',
-                transform: isActive ? 'scale(1.15)' : 'scale(1)',
+                transform: isHovered ? 'scale(1.25)' : isActive ? 'scale(1.15)' : 'scale(1)',
                 transition: 'all 0.2s ease',
-                zIndex: isActive ? 10 : 1,
+                zIndex: isActive || isHovered ? 10 : 1,
               }}
             >
               {formatPriceBubble(listing)}

@@ -2,12 +2,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import PropertyCard from '@/components/PropertyCard';
-import { fetchListings, fetchMeta } from '@/lib/api';
+import { fetchListings, fetchMeta, nearbyServices } from '@/lib/api';
+import { FaHospital, FaSchool, FaTimes } from 'react-icons/fa';
 
 const SearchMap = dynamic(() => import('@/components/SearchMap'), { ssr: false });
 
 const FILTER_DEFAULTS = {
-  listing_type: '',
+  listing_type: 'buy,rent',
   district: '',
   rooms: '',
   min_area: '',
@@ -19,9 +20,12 @@ const PropertiesPage = () => {
   const [listings, setListings] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [activeToken, setActiveToken] = useState(null);
+  const [hoveredToken, setHoveredToken] = useState(null);
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [servicesInfo, setServicesInfo] = useState(null);
+  const [servicesLoading, setServicesLoading] = useState(false);
 
   // Load meta on mount
   useEffect(() => {
@@ -61,6 +65,30 @@ const PropertiesPage = () => {
     loadListings();
   }, [loadListings]);
 
+  const activeListing = listings.find((l) => l.token === activeToken) || null;
+
+  useEffect(() => {
+    if (!activeListing || !activeListing.lat || !activeListing.lng) {
+      setServicesInfo(null);
+      return;
+    }
+    let cancelled = false;
+    setServicesLoading(true);
+    nearbyServices({ lat: activeListing.lat, lng: activeListing.lng })
+      .then((data) => {
+        if (!cancelled) setServicesInfo(data);
+      })
+      .catch(() => {
+        if (!cancelled) setServicesInfo(null);
+      })
+      .finally(() => {
+        if (!cancelled) setServicesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeListing?.lat, activeListing?.lng]);
+
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
@@ -96,9 +124,10 @@ const PropertiesPage = () => {
           value={filters.listing_type}
           onChange={(e) => handleFilterChange('listing_type', e.target.value)}
         >
-          <option value=''>همه نوع‌ها</option>
+          <option value='buy,rent'>خرید و اجاره</option>
           <option value='buy'>خرید</option>
           <option value='rent'>اجاره</option>
+          <option value='short_term'>اجاره کوتاه‌مدت</option>
         </select>
 
         {/* محله */}
@@ -204,16 +233,23 @@ const PropertiesPage = () => {
           )}
           <div className='p-3 flex flex-col gap-3'>
             {listings.map((listing) => (
-              <PropertyCard
+              <div
                 key={listing.token}
-                property={listing}
-                onClick={handleCardClick}
-                className={
-                  activeToken === listing.token
-                    ? 'border-2 border-blue-600 ring-2 ring-blue-100'
-                    : 'border border-transparent'
-                }
-              />
+                onMouseEnter={() => setHoveredToken(listing.token)}
+                onMouseLeave={() => setHoveredToken(null)}
+              >
+                <PropertyCard
+                  property={listing}
+                  onClick={handleCardClick}
+                  className={
+                    activeToken === listing.token
+                      ? 'border-2 border-blue-600 ring-2 ring-blue-100'
+                      : hoveredToken === listing.token
+                      ? 'border-2 border-amber-400 ring-2 ring-amber-100'
+                      : 'border border-transparent'
+                  }
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -224,7 +260,52 @@ const PropertiesPage = () => {
             listings={listings}
             activeToken={activeToken}
             onMarkerClick={handleMarkerClick}
+            hoveredToken={hoveredToken}
+            onMarkerHover={setHoveredToken}
           />
+
+          {activeListing && (
+            <div
+              dir='rtl'
+              className='absolute top-3 right-3 z-10 bg-white rounded-xl shadow-lg border border-gray-100 p-3 w-[280px] max-w-[90vw]'
+            >
+              <div className='flex items-center justify-between mb-2'>
+                <span className='font-bold text-sm text-gray-800'>خدمات نزدیک</span>
+                <button onClick={() => setActiveToken(null)} className='text-gray-400 hover:text-gray-600'>
+                  <FaTimes />
+                </button>
+              </div>
+              {servicesLoading && <p className='text-xs text-gray-400'>در حال جستجو...</p>}
+              {!servicesLoading && servicesInfo && (
+                <div className='flex flex-col gap-1.5'>
+                  {[
+                    { key: 'hospital', label: 'بیمارستان', icon: <FaHospital className='text-red-500' /> },
+                    { key: 'elementary_boy', label: 'دبستان پسرانه', icon: <FaSchool className='text-blue-500' /> },
+                    { key: 'elementary_girl', label: 'دبستان دخترانه', icon: <FaSchool className='text-pink-500' /> },
+                    { key: 'high_boy', label: 'دبیرستان پسرانه', icon: <FaSchool className='text-blue-700' /> },
+                    { key: 'high_girl', label: 'دبیرستان دخترانه', icon: <FaSchool className='text-pink-700' /> },
+                  ].map(({ key, label, icon }) => {
+                    const item = servicesInfo[key];
+                    return (
+                      <div key={key} className='flex items-center justify-between text-xs bg-gray-50 rounded-lg px-2 py-1.5'>
+                        <div className='flex items-center gap-1.5 text-gray-500'>
+                          {icon}
+                          <span>{label}</span>
+                        </div>
+                        {item ? (
+                          <span className='text-gray-700 font-semibold truncate max-w-[130px]'>
+                            {item.name} · {item.duration_min} د
+                          </span>
+                        ) : (
+                          <span className='text-gray-400'>یافت نشد</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

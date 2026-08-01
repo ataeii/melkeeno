@@ -1,5 +1,5 @@
 'use client';
-import { FaBed, FaRulerCombined, FaBuilding } from 'react-icons/fa';
+import { FaBed, FaRulerCombined, FaBuilding, FaUserFriends } from 'react-icons/fa';
 
 function formatPrice(price) {
   if (!price || price === 0) return null;
@@ -10,7 +10,11 @@ function formatPrice(price) {
 
 const PropertyCard = ({ property, onClick, className }) => {
   const priceDisplay =
-    property.listing_type === 'rent'
+    property.listing_type === 'short_term'
+      ? property.price
+        ? 'از ' + formatPrice(property.price) + ' تومان'
+        : 'تماس بگیرید'
+      : property.listing_type === 'rent'
       ? property.rent
         ? formatPrice(property.rent) + '/ماه'
         : property.deposit
@@ -54,10 +58,18 @@ const PropertyCard = ({ property, onClick, className }) => {
         {/* Type badge */}
         <div
           className={`absolute top-2 left-2 px-2 py-1 rounded text-xs font-bold text-white ${
-            property.listing_type === 'rent' ? 'bg-green-600' : 'bg-blue-700'
+            property.listing_type === 'short_term'
+              ? 'bg-purple-600'
+              : property.listing_type === 'rent'
+              ? 'bg-green-600'
+              : 'bg-blue-700'
           }`}
         >
-          {property.listing_type === 'rent' ? 'اجاره' : 'فروش'}
+          {property.listing_type === 'short_term'
+            ? 'اجاره کوتاه‌مدت'
+            : property.listing_type === 'rent'
+            ? 'اجاره'
+            : 'فروش'}
         </div>
       </div>
 
@@ -95,6 +107,12 @@ const PropertyCard = ({ property, onClick, className }) => {
             <span className='flex items-center gap-1'>
               <FaBed className='text-gray-400' />
               {property.rooms} خواب
+            </span>
+          )}
+          {property.listing_type === 'short_term' && property.max_guests != null && (
+            <span className='flex items-center gap-1'>
+              <FaUserFriends className='text-gray-400' />
+              تا {property.max_guests} نفر
             </span>
           )}
           {property.floor != null && (

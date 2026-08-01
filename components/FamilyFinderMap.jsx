@@ -1,4 +1,5 @@
 'use client';
+import { useRef, useEffect } from 'react';
 import { Map, Marker, Source, Layer } from 'react-map-gl/maplibre';
 
 const ROUTE_COLORS = ['#0052ab', '#c2410c', '#0f766e', '#7c3aed', '#be123c', '#a16207'];
@@ -29,9 +30,46 @@ const pinStyle = (bg) => ({
   whiteSpace: 'nowrap',
 });
 
-const FamilyFinderMap = ({ work = [], schools = [], activeMode, onMapClick, routes = [], house = null }) => {
+const FamilyFinderMap = ({
+  schools = [],
+  allSchools = [],
+  onSchoolMarkerClick,
+  activeMode,
+  onMapClick,
+  routes = [],
+  house = null,
+  hoveredHouse = null,
+}) => {
+  const mapRef = useRef(null);
+
+  // Fit the view to whatever is currently being shown (routes + pins) so
+  // short urban routes are actually visible following streets, instead of
+  // sitting inside the default city-wide zoom where a 1-3km route looks
+  // almost like a straight line regardless of how accurate it really is.
+  useEffect(() => {
+    const map = mapRef.current?.getMap?.();
+    if (!map) return;
+
+    const points = [];
+    routes.forEach((r) => r.geometry?.forEach(([lng, lat]) => points.push([lng, lat])));
+    if (house) points.push([house.lng, house.lat]);
+    if (hoveredHouse) points.push([hoveredHouse.lng, hoveredHouse.lat]);
+    schools.forEach((s) => points.push([s.lng, s.lat]));
+
+    if (points.length < 2) return;
+
+    const lngs = points.map((p) => p[0]);
+    const lats = points.map((p) => p[1]);
+    const bounds = [
+      [Math.min(...lngs), Math.min(...lats)],
+      [Math.max(...lngs), Math.max(...lats)],
+    ];
+    map.fitBounds(bounds, { padding: 70, duration: 600, maxZoom: 16 });
+  }, [routes, house?.lat, house?.lng, hoveredHouse?.lat, hoveredHouse?.lng, schools]);
+
   return (
     <Map
+      ref={mapRef}
       initialViewState={{ longitude: 51.404, latitude: 35.715, zoom: 11 }}
       style={{ width: '100%', height: '100%' }}
       mapStyle='https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
@@ -80,15 +118,49 @@ const FamilyFinderMap = ({ work = [], schools = [], activeMode, onMapClick, rout
         );
       })}
 
+      {hoveredHouse && (
+        <Marker longitude={hoveredHouse.lng} latitude={hoveredHouse.lat} anchor='bottom'>
+          <div
+            style={{
+              ...pinStyle('#d97706'),
+              transform: 'scale(1.25)',
+              boxShadow: '0 4px 14px rgba(217,119,6,0.6)',
+            }}
+          >
+            🏠
+          </div>
+        </Marker>
+      )}
+
       {house && (
         <Marker longitude={house.lng} latitude={house.lat} anchor='bottom'>
           <div style={pinStyle('#16a34a')}>🏠 خانه</div>
         </Marker>
       )}
 
-      {work.map((w, i) => (
-        <Marker key={`w-${i}`} longitude={w.lng} latitude={w.lat} anchor='bottom'>
-          <div style={pinStyle('#0052ab')}>💼 {w.label || `محل کار ${i + 1}`}</div>
+      {allSchools.map((s) => (
+        <Marker
+          key={`all-s-${s.id}`}
+          longitude={s.lng}
+          latitude={s.lat}
+          anchor='bottom'
+          onClick={(e) => {
+            e.originalEvent?.stopPropagation();
+            onSchoolMarkerClick?.(s);
+          }}
+        >
+          <div
+            title={s.name}
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: '#fb923c',
+              border: '1.5px solid white',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+              cursor: 'pointer',
+            }}
+          />
         </Marker>
       ))}
 

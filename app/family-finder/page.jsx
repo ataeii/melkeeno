@@ -1,19 +1,50 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import PropertyCard from '@/components/PropertyCard';
 import SchoolSearchInput from '@/components/SchoolSearchInput';
-import { matchListings, matchCustomHouse, nearbySchools } from '@/lib/api';
-import { FaBriefcase, FaSchool, FaHome, FaTrash, FaRoute, FaPlus } from 'react-icons/fa';
+import {
+  matchListings,
+  matchCustomHouse,
+  nearbySchools,
+  nearbyServices,
+  fetchListings,
+  fetchAllSchools,
+  submitPendingSchool,
+} from '@/lib/api';
+import { FaSchool, FaHome, FaTrash, FaRoute, FaPlus, FaHospital } from 'react-icons/fa';
 
 const FamilyFinderMap = dynamic(() => import('@/components/FamilyFinderMap'), { ssr: false });
 
+const formatToman = (n) => {
+  if (!n) return null;
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + ' میلیارد';
+  if (n >= 1e6) return (n / 1e6).toFixed(0) + ' میلیون';
+  return n.toLocaleString();
+};
+
 const FamilyFinderPage = () => {
-  const [mode, setMode] = useState('work'); // 'work' | 'school' | 'house'
-  const [work, setWork] = useState([]);
-  const [schools, setSchools] = useState([]);
+  const [mode, setMode] = useState('school'); // 'school' | 'house'
+  const [schools, setSchools] = useState([]); // capped at 1 item — single-select
   const [customHouse, setCustomHouse] = useState(null);
+  const [selectedHouseToken, setSelectedHouseToken] = useState(null);
   const [listingType, setListingType] = useState('');
+
+  const [houses, setHouses] = useState([]);
+  const [housesLoading, setHousesLoading] = useState(true);
+  const [hoveredHouse, setHoveredHouse] = useState(null);
+
+  // All scraped schools, shown as browsable dots on the map in school mode
+  const [allSchools, setAllSchools] = useState([]);
+
+  // Draft state for a school the user located on the map that isn't in
+  // the scraped dataset yet — filled in via a small form, then usable
+  // immediately as a match reference and saved for later review.
+  const [schoolDraft, setSchoolDraft] = useState(null); // { lat, lng }
+  const [schoolDraftName, setSchoolDraftName] = useState('');
+  const [schoolDraftGender, setSchoolDraftGender] = useState('پسرانه');
+  const [schoolDraftLevel, setSchoolDraftLevel] = useState('ابتدایی');
+  const [schoolDraftType, setSchoolDraftType] = useState('دولتی');
 
   const [results, setResults] = useState(null);
   const [selectedToken, setSelectedToken] = useState(null);
@@ -28,26 +59,36 @@ const FamilyFinderPage = () => {
   const [nearbyActive, setNearbyActive] = useState(false);
   const [nearbyLoading, setNearbyLoading] = useState(false);
 
+  // Real houses to browse, loaded once — short-term/daily rentals are a
+  // separate product (see /properties), not permanent housing to live in
+  useEffect(() => {
+    fetchListings({ listing_type: 'buy,rent' })
+      .then((data) => setHouses(Array.isArray(data) ? data : []))
+      .catch(() => setHouses([]))
+      .finally(() => setHousesLoading(false));
+  }, []);
+
+  // All scraped schools, loaded once, shown as dots on the map in school mode
+  useEffect(() => {
+    fetchAllSchools()
+      .then((data) => setAllSchools(Array.isArray(data) ? data : []))
+      .catch(() => setAllSchools([]));
+  }, []);
+
   const handleMapClick = (lat, lng) => {
-    if (mode === 'work') {
-      setWork((prev) => [...prev, { lat, lng, label: `محل کار ${prev.length + 1}` }]);
-    } else if (mode === 'school') {
-      setSchools((prev) => [...prev, { lat, lng, label: `مدرسه ${prev.length + 1}` }]);
-    } else {
-      setCustomHouse({ lat, lng });
-      setCustomActive(false);
-      setCustomInfo(null);
-      setNearbyActive(false);
-      setNearbyResults(null);
+    if (mode === 'school') {
+      // Clicking empty map area in school mode means "the school I want
+      // isn't in the dataset" — open the add-school form instead of
+      // guessing a placeholder school.
+      setSchoolDraft({ lat, lng });
     }
+    // House is picked only from the list now, map click does nothing in that tab
   };
 
-  const removeWork = (index) => setWork((prev) => prev.filter((_, i) => i !== index));
-  const removeSchool = (index) => setSchools((prev) => prev.filter((_, i) => i !== index));
+  const clearSchool = () => setSchools([]);
 
   const handleSchoolSelect = (school) => {
-    setSchools((prev) => [
-      ...prev,
+    setSchools([
       {
         lat: school.lat,
         lng: school.lng,
@@ -56,11 +97,67 @@ const FamilyFinderPage = () => {
         school_type: school.school_type,
       },
     ]);
+    setSchoolDraft(null);
+  };
+
+  const cancelSchoolDraft = () => {
+    setSchoolDraft(null);
+    setSchoolDraftName('');
+  };
+
+  const submitSchoolDraft = async () => {
+    if (!schoolDraft || !schoolDraftName.trim()) return;
+    const school = {
+      lat: schoolDraft.lat,
+      lng: schoolDraft.lng,
+      name: schoolDraftName.trim(),
+      gender: schoolDraftGender,
+      base_level: schoolDraftLevel,
+      school_type: schoolDraftType,
+    };
+    setSchools([
+      {
+        lat: school.lat,
+        lng: school.lng,
+        label: school.name,
+        base_level: school.base_level,
+        school_type: school.school_type,
+        custom: true,
+      },
+    ]);
+    setSchoolDraft(null);
+    setSchoolDraftName('');
+    try {
+      await submitPendingSchool(school);
+    } catch (e) {
+      // Best-effort — the school is already usable as a reference for this
+      // session even if saving it for later review failed.
+    }
+  };
+
+  const resetHouseCalculations = () => {
+    setCustomActive(false);
+    setCustomInfo(null);
+    setNearbyActive(false);
+    setNearbyResults(null);
+  };
+
+  const selectHouseFromList = (house) => {
+    setCustomHouse({ lat: house.lat, lng: house.lng });
+    setSelectedHouseToken(house.token);
+    setSelectedToken(null);
+    resetHouseCalculations();
+  };
+
+  const clearSelectedHouse = () => {
+    setCustomHouse(null);
+    setSelectedHouseToken(null);
+    resetHouseCalculations();
   };
 
   const handleSubmit = async () => {
-    if (work.length === 0 && schools.length === 0) {
-      setError('لطفاً حداقل یک محل کار یا مدرسه روی نقشه مشخص کنید.');
+    if (schools.length === 0) {
+      setError('لطفاً یک مدرسه مشخص کنید.');
       return;
     }
     setLoading(true);
@@ -69,7 +166,7 @@ const FamilyFinderPage = () => {
     setCustomActive(false);
     setNearbyActive(false);
     try {
-      const data = await matchListings({ work, schools, listingType });
+      const data = await matchListings({ work: [], schools, listingType });
       setResults(data);
       if (data.length > 0) setSelectedToken(data[0].token);
     } catch (e) {
@@ -80,15 +177,14 @@ const FamilyFinderPage = () => {
   };
 
   const handleCheckCustomHouse = async () => {
-    if (!customHouse || (work.length === 0 && schools.length === 0)) return;
+    if (!customHouse || schools.length === 0) return;
     setCustomLoading(true);
     setError(null);
     try {
-      const data = await matchCustomHouse({ house: customHouse, work, schools });
+      const data = await matchCustomHouse({ house: customHouse, work: [], schools });
       setCustomInfo(data);
       setCustomActive(true);
       setNearbyActive(false);
-      setSelectedToken(null);
     } catch (e) {
       setError('خطا در محاسبه مسیر این خانه. لطفاً دوباره تلاش کنید.');
     } finally {
@@ -105,7 +201,6 @@ const FamilyFinderPage = () => {
       setNearbyResults(data);
       setNearbyActive(true);
       setCustomActive(false);
-      setSelectedToken(null);
     } catch (e) {
       setError('خطا در یافتن مدرسه‌های نزدیک. لطفاً دوباره تلاش کنید.');
     } finally {
@@ -114,8 +209,7 @@ const FamilyFinderPage = () => {
   };
 
   const addNearbySchoolToList = (school) => {
-    setSchools((prev) => [
-      ...prev,
+    setSchools([
       {
         lat: school.lat,
         lng: school.lng,
@@ -138,31 +232,45 @@ const FamilyFinderPage = () => {
     ? (nearbyResults || []).map((s) => ({ ...s, label: s.name }))
     : selectedResult?.routes || [];
 
+  const [servicesInfo, setServicesInfo] = useState(null);
+  const [servicesLoading, setServicesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!mapHouse) {
+      setServicesInfo(null);
+      return;
+    }
+    let cancelled = false;
+    setServicesLoading(true);
+    nearbyServices({ lat: mapHouse.lat, lng: mapHouse.lng })
+      .then((data) => {
+        if (!cancelled) setServicesInfo(data);
+      })
+      .catch(() => {
+        if (!cancelled) setServicesInfo(null);
+      })
+      .finally(() => {
+        if (!cancelled) setServicesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mapHouse?.lat, mapHouse?.lng]);
+
   return (
     <div dir='rtl' className='max-w-7xl mx-auto px-4 py-8'>
       <h1 className='text-3xl font-extrabold text-gray-900 mb-2'>پیشنهاد محله برای خانواده</h1>
       <p className='text-gray-500 mb-6'>
-        محل کار و مدرسه‌ فرزندان خود را روی نقشه مشخص کنید (می‌توانید چند محل کار یا مدرسه اضافه
-        کنید) تا حداکثر ۳ ملک با کمترین زمان تردد واقعی رانندگی به شما پیشنهاد شود. همچنین می‌توانید
-        یک خانه فرضی روی نقشه انتخاب کنید تا همین اطلاعات برای آن نیز محاسبه شود. زمان‌های
-        نمایش‌داده‌شده بر اساس شبکه واقعی معابر تخمین زده می‌شوند، اما ترافیک لحظه‌ای تهران را
-        به‌طور کامل لحاظ نمی‌کنند. (فقط تهران)
+        مدرسه فرزندتان را مشخص کنید تا حداکثر ۳ ملک با کمترین زمان تردد واقعی رانندگی به مدرسه به شما
+        پیشنهاد شود. همچنین می‌توانید یک خانه واقعی را از لیست انتخاب کنید تا همین اطلاعات برای آن نیز
+        محاسبه شود. (فقط تهران)
       </p>
 
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8'>
         {/* Controls */}
         <div className='lg:col-span-1 flex flex-col gap-4'>
           <div className='bg-white rounded-xl border border-gray-100 shadow-sm p-4'>
-            <p className='font-bold text-gray-800 mb-3'>روی نقشه کلیک کنید تا مکان اضافه شود</p>
             <div className='flex gap-2 mb-4'>
-              <button
-                onClick={() => setMode('work')}
-                className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
-                  mode === 'work' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <FaBriefcase /> محل کار
-              </button>
               <button
                 onClick={() => setMode('school')}
                 className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
@@ -177,62 +285,155 @@ const FamilyFinderPage = () => {
                   mode === 'house' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <FaHome /> خانه فرضی
+                <FaHome /> خانه
               </button>
             </div>
 
-            <div className='mb-3'>
-              <SchoolSearchInput onSelect={handleSchoolSelect} />
-            </div>
-
-            <div className='flex flex-col gap-1 mb-2'>
-              {work.map((w, i) => (
-                <div key={i} className='flex items-center justify-between text-sm text-gray-600 bg-blue-50 rounded-lg px-3 py-1.5'>
-                  <span>💼 {w.label}</span>
-                  <button onClick={() => removeWork(i)} className='text-red-500 hover:text-red-700'>
-                    <FaTrash className='text-xs' />
-                  </button>
+            {/* Only the active tab's panel is shown at a time */}
+            {mode === 'school' && (
+              <div>
+                <div className='mb-3'>
+                  <SchoolSearchInput onSelect={handleSchoolSelect} />
                 </div>
-              ))}
-              {work.length === 0 && <p className='text-xs text-gray-400'>هنوز محل کاری اضافه نشده</p>}
-            </div>
-
-            <div className='flex flex-col gap-1 mb-2'>
-              {schools.map((s, i) => (
-                <div key={i} className='flex items-center justify-between text-sm text-gray-600 bg-orange-50 rounded-lg px-3 py-1.5'>
-                  <div>
-                    <span>🏫 {s.label}</span>
-                    {(s.base_level || s.school_type) && (
-                      <div className='text-xs text-gray-400'>
-                        {[s.base_level, s.school_type].filter(Boolean).join(' · ')}
-                      </div>
-                    )}
+                {schools.length === 0 && !schoolDraft && (
+                  <p className='text-xs text-gray-400'>
+                    مدرسه را جستجو کنید، روی یکی از نقطه‌های نارنجی روی نقشه کلیک کنید، یا اگر مدرسه
+                    مورد نظرتان روی نقشه نیست، جای آن را روی نقشه مشخص کنید تا اطلاعاتش را وارد کنید
+                  </p>
+                )}
+                {schools.length > 0 && (
+                  <div className='flex items-center justify-between text-sm text-gray-600 bg-orange-50 rounded-lg px-3 py-1.5'>
+                    <div>
+                      <span>🏫 {schools[0].label}</span>
+                      {schools[0].custom && (
+                        <span className='text-[10px] text-orange-500 mr-1'>(در انتظار بررسی)</span>
+                      )}
+                      {(schools[0].base_level || schools[0].school_type) && (
+                        <div className='text-xs text-gray-400'>
+                          {[schools[0].base_level, schools[0].school_type].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={clearSchool} className='text-red-500 hover:text-red-700'>
+                      <FaTrash className='text-xs' />
+                    </button>
                   </div>
-                  <button onClick={() => removeSchool(i)} className='text-red-500 hover:text-red-700'>
-                    <FaTrash className='text-xs' />
-                  </button>
+                )}
+
+                {schoolDraft && (
+                  <div className='bg-orange-50 border border-orange-200 rounded-lg p-3 mt-3'>
+                    <p className='text-xs text-orange-700 mb-2 font-semibold'>
+                      این مدرسه در پایگاه داده نیست — اطلاعاتش را وارد کنید
+                    </p>
+                    <input
+                      type='text'
+                      autoFocus
+                      placeholder='نام مدرسه'
+                      value={schoolDraftName}
+                      onChange={(e) => setSchoolDraftName(e.target.value)}
+                      className='w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-orange-500'
+                    />
+                    <div className='grid grid-cols-3 gap-1.5 mb-2'>
+                      <select
+                        value={schoolDraftGender}
+                        onChange={(e) => setSchoolDraftGender(e.target.value)}
+                        className='text-xs px-1 py-1.5 rounded-lg border border-gray-200'
+                      >
+                        <option value='پسرانه'>پسرانه</option>
+                        <option value='دخترانه'>دخترانه</option>
+                      </select>
+                      <select
+                        value={schoolDraftLevel}
+                        onChange={(e) => setSchoolDraftLevel(e.target.value)}
+                        className='text-xs px-1 py-1.5 rounded-lg border border-gray-200'
+                      >
+                        <option value='ابتدایی'>ابتدایی</option>
+                        <option value='دبیرستان'>دبیرستان</option>
+                      </select>
+                      <select
+                        value={schoolDraftType}
+                        onChange={(e) => setSchoolDraftType(e.target.value)}
+                        className='text-xs px-1 py-1.5 rounded-lg border border-gray-200'
+                      >
+                        <option value='دولتی'>دولتی</option>
+                        <option value='غیر دولتی'>غیرانتفاعی</option>
+                      </select>
+                    </div>
+                    <div className='flex gap-2'>
+                      <button
+                        onClick={submitSchoolDraft}
+                        disabled={!schoolDraftName.trim()}
+                        className='flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg transition-colors'
+                      >
+                        ثبت و استفاده به‌عنوان مرجع
+                      </button>
+                      <button
+                        onClick={cancelSchoolDraft}
+                        className='px-3 text-xs text-gray-500 hover:text-gray-700'
+                      >
+                        انصراف
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {mode === 'house' && (
+              <div>
+                <p className='text-xs text-gray-400 mb-2'>
+                  یک خانه واقعی را از لیست انتخاب کنید — با نگه‌داشتن ماوس روی هر مورد، محل آن روی نقشه نمایش داده می‌شود
+                </p>
+                {selectedHouseToken && (
+                  <div className='flex items-center justify-between text-sm text-gray-700 bg-green-50 rounded-lg px-3 py-1.5 mb-2'>
+                    <span>🏠 خانه انتخاب شد</span>
+                    <button onClick={clearSelectedHouse} className='text-red-500 hover:text-red-700'>
+                      <FaTrash className='text-xs' />
+                    </button>
+                  </div>
+                )}
+                {housesLoading && <p className='text-xs text-gray-400'>در حال بارگذاری خانه‌ها...</p>}
+                <div className='flex flex-col gap-1.5 max-h-[420px] overflow-y-auto'>
+                  {houses.map((h) => (
+                    <div
+                      key={h.token}
+                      onMouseEnter={() => setHoveredHouse({ lat: h.lat, lng: h.lng })}
+                      onMouseLeave={() => setHoveredHouse(null)}
+                      onClick={() => selectHouseFromList(h)}
+                      className={`flex items-center gap-2 rounded-lg p-2 cursor-pointer transition-colors border ${
+                        selectedHouseToken === h.token
+                          ? 'bg-green-50 border-green-400'
+                          : 'bg-gray-50 border-transparent hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className='relative w-14 h-14 flex-shrink-0 rounded-md overflow-hidden bg-gray-200'>
+                        {h.image_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={h.image_url} alt={h.title} className='w-full h-full object-cover' />
+                        )}
+                        <span
+                          className={`absolute bottom-0 left-0 right-0 text-center text-[9px] font-bold text-white py-0.5 ${
+                            h.listing_type === 'rent' ? 'bg-green-600' : 'bg-blue-700'
+                          }`}
+                        >
+                          {h.listing_type === 'rent' ? 'اجاره' : 'فروش'}
+                        </span>
+                      </div>
+                      <div className='min-w-0'>
+                        <p className='text-xs font-bold text-gray-800 truncate'>
+                          {formatToman(h.listing_type === 'buy' ? h.price : h.rent || h.deposit)} تومان
+                        </p>
+                        <p className='text-xs text-gray-500 truncate'>{h.title}</p>
+                        <p className='text-[11px] text-gray-400 truncate'>{h.district}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {schools.length === 0 && <p className='text-xs text-gray-400'>هنوز مدرسه‌ای اضافه نشده</p>}
-            </div>
+              </div>
+            )}
 
             {customHouse && (
-              <div className='bg-green-50 rounded-lg px-3 py-2 mb-4'>
-                <div className='flex items-center justify-between text-sm text-gray-700 mb-2'>
-                  <span>🏠 خانه فرضی ثبت شد</span>
-                  <button
-                    onClick={() => {
-                      setCustomHouse(null);
-                      setCustomActive(false);
-                      setCustomInfo(null);
-                      setNearbyActive(false);
-                      setNearbyResults(null);
-                    }}
-                    className='text-red-500 hover:text-red-700'
-                  >
-                    <FaTrash className='text-xs' />
-                  </button>
-                </div>
+              <div className='bg-green-50 rounded-lg px-3 py-2 mt-4'>
                 <button
                   onClick={handleCheckCustomHouse}
                   disabled={customLoading}
@@ -274,7 +475,7 @@ const FamilyFinderPage = () => {
                           </div>
                           <button
                             onClick={() => addNearbySchoolToList(s)}
-                            title='افزودن به لیست مدرسه‌ها'
+                            title='انتخاب به عنوان مدرسه'
                             className='text-teal-600 hover:text-teal-800'
                           >
                             <FaPlus className='text-xs' />
@@ -287,7 +488,7 @@ const FamilyFinderPage = () => {
               </div>
             )}
 
-            <label className='block text-sm text-gray-600 mb-1'>نوع ملک</label>
+            <label className='block text-sm text-gray-600 mb-1 mt-4'>نوع ملک</label>
             <select
               className='w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500'
               value={listingType}
@@ -312,15 +513,54 @@ const FamilyFinderPage = () => {
         {/* Map */}
         <div className='lg:col-span-2 h-[420px] rounded-xl overflow-hidden border border-gray-100 shadow-sm'>
           <FamilyFinderMap
-            work={work}
             schools={schools}
-            activeMode={mode}
+            allSchools={mode === 'school' ? allSchools : []}
+            onSchoolMarkerClick={handleSchoolSelect}
+            activeMode={mode === 'house' ? null : mode}
             onMapClick={handleMapClick}
             routes={mapRoutes}
             house={mapHouse}
+            hoveredHouse={hoveredHouse}
           />
         </div>
       </div>
+
+      {/* Nearby services for whichever house is currently being viewed */}
+      {mapHouse && (
+        <div className='bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-8' dir='rtl'>
+          <h3 className='font-bold text-gray-800 mb-3'>خدمات نزدیک به این خانه</h3>
+          {servicesLoading && <p className='text-sm text-gray-400'>در حال جستجو...</p>}
+          {!servicesLoading && servicesInfo && (
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3'>
+              {[
+                { key: 'hospital', label: 'نزدیک‌ترین بیمارستان', icon: <FaHospital className='text-red-500' /> },
+                { key: 'elementary_boy', label: 'دبستان پسرانه', icon: <FaSchool className='text-blue-500' /> },
+                { key: 'elementary_girl', label: 'دبستان دخترانه', icon: <FaSchool className='text-pink-500' /> },
+                { key: 'high_boy', label: 'دبیرستان پسرانه', icon: <FaSchool className='text-blue-700' /> },
+                { key: 'high_girl', label: 'دبیرستان دخترانه', icon: <FaSchool className='text-pink-700' /> },
+              ].map(({ key, label, icon }) => {
+                const item = servicesInfo[key];
+                return (
+                  <div key={key} className='bg-gray-50 rounded-lg p-3'>
+                    <div className='flex items-center gap-1.5 text-xs text-gray-500 mb-1'>
+                      {icon}
+                      <span>{label}</span>
+                    </div>
+                    {item ? (
+                      <>
+                        <div className='text-sm font-semibold text-gray-800 truncate'>{item.name}</div>
+                        <div className='text-xs text-gray-400'>{item.duration_min} دقیقه</div>
+                      </>
+                    ) : (
+                      <div className='text-xs text-gray-400'>یافت نشد</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Results */}
       {results && (
@@ -329,14 +569,20 @@ const FamilyFinderPage = () => {
             {results.length > 0 ? `${results.length} پیشنهاد برتر` : 'نتیجه‌ای یافت نشد'}
           </h2>
           {results.length > 0 && (
-            <p className='text-sm text-gray-400 mb-4'>برای دیدن مسیر رانندگی هر خانه روی کارت آن کلیک کنید</p>
+            <p className='text-sm text-gray-400 mb-4'>
+              با نگه‌داشتن ماوس روی هر کارت، محل آن روی نقشه نمایش داده می‌شود — برای دیدن مسیر رانندگی روی کارت کلیک کنید
+            </p>
           )}
           <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
             {results.map((property) => (
               <div
                 key={property.token}
+                onMouseEnter={() => setHoveredHouse({ lat: property.lat, lng: property.lng })}
+                onMouseLeave={() => setHoveredHouse(null)}
                 onClick={() => {
                   setSelectedToken(property.token);
+                  setSelectedHouseToken(null);
+                  setCustomHouse(null);
                   setCustomActive(false);
                   setNearbyActive(false);
                 }}
