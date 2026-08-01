@@ -5,7 +5,7 @@ import { sendOtpSms } from '@/lib/sms';
 
 const PHONE_REGEX = /^09\d{9}$/;
 const RESEND_COOLDOWN_MS = 60 * 1000;
-const CODE_TTL_MS = 2 * 60 * 1000;
+const CODE_TTL_MS = 5 * 60 * 1000;
 
 export const POST = async (request) => {
   try {
@@ -37,11 +37,9 @@ export const POST = async (request) => {
 
     const code = crypto.randomInt(100000, 1000000).toString();
 
-    const otp = await OtpCode.create({
-      phone,
-      code,
-      expiresAt: new Date(Date.now() + CODE_TTL_MS),
-    });
+    const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+    const otp = await OtpCode.create({ phone, code, expiresAt });
+    console.log(`[otp-send] phone=${phone} createdAt=${otp.createdAt.toISOString()} expiresAt=${expiresAt.toISOString()}`);
 
     try {
       await sendOtpSms(phone, code);

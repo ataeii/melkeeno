@@ -14,24 +14,37 @@ export const authOptions = {
       },
       async authorize(credentials) {
         const { phone, code } = credentials || {};
-        if (!phone || !code) return null;
+        if (!phone || !code) {
+          console.log('[otp-auth] missing phone or code in credentials');
+          return null;
+        }
 
         await connectDB();
 
         const otp = await OtpCode.findOne({ phone });
-        if (!otp) return null;
+        if (!otp) {
+          console.log(`[otp-auth] no OTP record found for ${phone}`);
+          return null;
+        }
+
+        console.log(
+          `[otp-auth] phone=${phone} now=${new Date().toISOString()} expiresAt=${otp.expiresAt.toISOString()} attempts=${otp.attempts} codeMatches=${otp.code === code}`
+        );
 
         if (otp.expiresAt < new Date()) {
+          console.log(`[otp-auth] rejecting: expired`);
           await otp.deleteOne();
           return null;
         }
 
         if (otp.attempts >= 5) {
+          console.log(`[otp-auth] rejecting: too many attempts`);
           await otp.deleteOne();
           return null;
         }
 
         if (otp.code !== code) {
+          console.log(`[otp-auth] rejecting: code mismatch`);
           otp.attempts += 1;
           await otp.save();
           return null;
@@ -39,12 +52,17 @@ export const authOptions = {
 
         await otp.deleteOne();
 
-        let user = await User.findOne({ phone });
-        if (!user) {
-          user = await User.create({ phone });
+        try {
+          let user = await User.findOne({ phone });
+          if (!user) {
+            user = await User.create({ phone });
+          }
+          console.log(`[otp-auth] success, returning user id=${user._id}`);
+          return { id: user._id.toString(), phone: user.phone };
+        } catch (err) {
+          console.log(`[otp-auth] error creating/finding user: ${err.message}`);
+          throw err;
         }
-
-        return { id: user._id.toString(), phone: user.phone };
       },
     }),
   ],
