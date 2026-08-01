@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { FaBars, FaTimes } from 'react-icons/fa';
+import AirQualityBadge from './AirQualityBadge';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -11,7 +12,7 @@ const Navbar = () => {
   const { data: session, status } = useSession();
 
   return (
-    <nav className='sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm'>
+    <nav className='sticky top-0 z-40 bg-cream/95 backdrop-blur border-b border-cream-dark shadow-sm'>
       <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
         <div className='grid grid-cols-3 items-center h-16' dir='rtl'>
           {/* Nav links (right side in RTL) */}
@@ -32,6 +33,7 @@ const Navbar = () => {
             >
               پیشنهاد محله
             </Link>
+            <AirQualityBadge />
           </div>
 
           {/* Mobile menu button */}
@@ -56,7 +58,7 @@ const Navbar = () => {
           {/* Logo — always centered */}
           <div className='flex justify-center'>
             <Link href='/' className='flex items-center'>
-              <span className='text-blue-600 text-2xl font-extrabold tracking-tight'>
+              <span className='text-navy-800 text-2xl font-extrabold tracking-tight'>
                 ملکینو
               </span>
             </Link>
@@ -109,6 +111,9 @@ const Navbar = () => {
             >
               پیشنهاد محله
             </Link>
+            <div className='px-3 py-2'>
+              <AirQualityBadge />
+            </div>
             {status !== 'loading' &&
               (session ? (
                 <button

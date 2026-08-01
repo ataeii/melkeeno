@@ -1,28 +1,57 @@
+import Image from 'next/image';
+import { FaSearchLocation, FaShieldAlt, FaHeadset } from 'react-icons/fa';
 import PropertySearchForm from './PropertySearchForm';
+import heroImage from '@/public/images/hero-family.webp';
+
+const TRUST_POINTS = [
+  {
+    icon: <FaSearchLocation className='text-2xl' />,
+    title: 'آگهی‌های معتبر',
+    desc: 'بررسی و تایید شده',
+  },
+  {
+    icon: <FaShieldAlt className='text-2xl' />,
+    title: 'محیطی امن',
+    desc: 'برای معامله مطمئن',
+  },
+  {
+    icon: <FaHeadset className='text-2xl' />,
+    title: 'پشتیبانی حرفه‌ای',
+    desc: 'در تمام مراحل',
+  },
+];
 
 const Hero = () => {
   return (
-    <section className='relative overflow-hidden bg-gradient-to-b from-blue-700 to-blue-900 pt-16 pb-24 sm:pt-20 sm:pb-28'>
-      {/* Subtle decorative pattern */}
-      <div
-        className='absolute inset-0 opacity-10'
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 2px 2px, white 1.5px, transparent 0)',
-          backgroundSize: '28px 28px',
-        }}
-      />
+    <section className='relative overflow-hidden bg-cream pt-14 pb-16 sm:pt-20 sm:pb-20'>
+      <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+        {/* Picture — full width, entire original 1536x1024 image, no crop
+            (the box's aspect ratio matches the source file exactly) */}
+        <div className='relative w-full aspect-[1536/1024]'>
+          <Image
+            src={heroImage}
+            alt='خانواده در حال بازدید از آپارتمان'
+            fill
+            priority
+            className='object-contain'
+            sizes='100vw'
+          />
+        </div>
 
-      <div className='relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center'>
-        <h1 className='text-4xl font-extrabold text-white sm:text-5xl md:text-6xl leading-tight'>
-          خانه رویایی خود را با <span className='text-blue-200'>ملکینو</span> پیدا کنید
-        </h1>
-        <p className='mt-4 text-lg text-blue-100 sm:text-xl max-w-2xl'>
-          جستجوی هزاران آگهی خرید و اجاره ملک در سراسر ایران، در یک نگاه
-        </p>
-
-        <div className='mt-8 w-full'>
+        {/* Search bar — full width, directly below the picture */}
+        <div className='mt-8'>
           <PropertySearchForm />
+        </div>
+
+        {/* Trust points */}
+        <div dir='rtl' className='mt-10 grid grid-cols-3 gap-4 max-w-2xl mx-auto'>
+          {TRUST_POINTS.map(({ icon, title, desc }) => (
+            <div key={title} className='flex flex-col items-center text-center gap-1.5'>
+              <span className='text-blue-600'>{icon}</span>
+              <span className='text-sm font-bold text-navy-800'>{title}</span>
+              <span className='text-xs text-gray-500'>{desc}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>

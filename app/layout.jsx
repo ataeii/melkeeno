@@ -52,7 +52,7 @@ const MainLayout = ({ children }) => {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
-      <body>
+      <body className='bg-cream text-gray-900'>
         <AuthProvider>
           <Navbar />
           <main>{children}</main>
