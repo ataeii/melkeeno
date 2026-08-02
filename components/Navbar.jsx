@@ -77,6 +77,12 @@ const Navbar = () => {
             {status !== 'loading' &&
               (session ? (
                 <div className='flex items-center gap-3'>
+                  <Link
+                    href='/properties/sell'
+                    className='bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 py-2 text-sm font-semibold transition-colors'
+                  >
+                    ثبت آگهی
+                  </Link>
                   <span className='text-gray-500 text-sm'>{session.user.phone}</span>
                   <button
                     onClick={() => signOut({ callbackUrl: '/' })}
@@ -133,15 +139,24 @@ const Navbar = () => {
             </div>
             {status !== 'loading' &&
               (session ? (
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    signOut({ callbackUrl: '/' });
-                  }}
-                  className='text-gray-600 block rounded-lg px-3 py-2 text-base font-semibold hover:bg-gray-100 w-full text-right'
-                >
-                  خروج ({session.user.phone})
-                </button>
+                <>
+                  <Link
+                    href='/properties/sell'
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className='block rounded-lg px-3 py-2 text-base font-semibold bg-blue-600 text-white text-center'
+                  >
+                    ثبت آگهی
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      signOut({ callbackUrl: '/' });
+                    }}
+                    className='text-gray-600 block rounded-lg px-3 py-2 text-base font-semibold hover:bg-gray-100 w-full text-right'
+                  >
+                    خروج ({session.user.phone})
+                  </button>
+                </>
               ) : (
                 <Link
                   href='/login'
