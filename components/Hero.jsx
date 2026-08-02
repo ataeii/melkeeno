@@ -25,9 +25,9 @@ const Hero = () => {
   return (
     <section className='relative overflow-hidden bg-cream pt-14 pb-16 sm:pt-20 sm:pb-20'>
       <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-        {/* Picture — full width, entire original 1536x1024 image, no crop
+        {/* Picture — full width, entire original 2528x1686 image, no crop
             (the box's aspect ratio matches the source file exactly) */}
-        <div className='relative w-full aspect-[1536/1024]'>
+        <div className='relative w-full aspect-[2528/1686]'>
           <Image
             src={heroImage}
             alt='خانواده در حال بازدید از آپارتمان'
