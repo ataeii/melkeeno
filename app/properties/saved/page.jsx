@@ -44,9 +44,9 @@ const SavedPage = () => {
     <section dir='rtl' className='max-w-7xl mx-auto px-4 py-8'>
       <h1 className='text-2xl font-extrabold text-navy-800 mb-6'>ذخیره‌شده‌ها</h1>
 
-      <h2 className='text-lg font-bold text-gray-800 mb-3'>خانه‌ها</h2>
+      <h2 className='text-lg font-bold text-gray-800 mb-3'>نشان شده</h2>
       {houses.length === 0 ? (
-        <p className='text-gray-400 text-sm mb-8'>هنوز خانه‌ای ذخیره نکرده‌اید</p>
+        <p className='text-gray-400 text-sm mb-8'>هنوز خانه‌ای نشان نکرده‌اید</p>
       ) : (
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10'>
           {houses.map((h) => (

@@ -520,6 +520,8 @@ const FamilyFinderPage = () => {
             schools={schools}
             allSchools={mode === 'school' ? allSchools : []}
             onSchoolMarkerClick={handleSchoolSelect}
+            allHouses={mode === 'house' ? houses : []}
+            onHouseHover={setHoveredHouse}
             activeMode={mode === 'house' ? null : mode}
             onMapClick={handleMapClick}
             routes={mapRoutes}

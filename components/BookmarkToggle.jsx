@@ -16,11 +16,17 @@ const BookmarkToggle = ({ type, id, className = '' }) => {
     type === 'listing' ? toggleListing(id) : toggleSchool(id);
   };
 
+  const title =
+    type === 'listing'
+      ? bookmarked
+        ? 'حذف نشان'
+        : 'نشان کردن'
+      : bookmarked
+      ? 'حذف از ذخیره‌شده‌ها'
+      : 'ذخیره کردن';
+
   return (
-    <button
-      type='button'
-      onClick={handleClick}
-      title={bookmarked ? 'حذف از ذخیره‌شده‌ها' : 'ذخیره کردن'}
+    <button type='button' onClick={handleClick} title={title}
       className={`flex items-center justify-center rounded-full transition-colors ${
         bookmarked ? 'text-blue-600' : 'text-gray-400 hover:text-blue-600'
       } ${className}`}

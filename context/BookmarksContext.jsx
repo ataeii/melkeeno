@@ -31,7 +31,7 @@ export function BookmarksProvider({ children }) {
   const toggle = useCallback(
     async (type, id) => {
       if (!session?.user) {
-        toast.error('برای ذخیره کردن ابتدا وارد شوید');
+        toast.error(type === 'listing' ? 'برای نشان کردن ابتدا وارد شوید' : 'برای ذخیره کردن ابتدا وارد شوید');
         return;
       }
       const setFn = type === 'listing' ? setListingTokens : setSchoolIds;

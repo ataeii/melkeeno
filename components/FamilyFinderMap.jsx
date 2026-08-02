@@ -34,6 +34,8 @@ const FamilyFinderMap = ({
   schools = [],
   allSchools = [],
   onSchoolMarkerClick,
+  allHouses = [],
+  onHouseHover,
   activeMode,
   onMapClick,
   routes = [],
@@ -55,6 +57,7 @@ const FamilyFinderMap = ({
     if (house) points.push([house.lng, house.lat]);
     if (hoveredHouse) points.push([hoveredHouse.lng, hoveredHouse.lat]);
     schools.forEach((s) => points.push([s.lng, s.lat]));
+    allHouses.forEach((h) => points.push([h.lng, h.lat]));
 
     if (points.length < 2) return;
 
@@ -65,7 +68,7 @@ const FamilyFinderMap = ({
       [Math.max(...lngs), Math.max(...lats)],
     ];
     map.fitBounds(bounds, { padding: 70, duration: 600, maxZoom: 16 });
-  }, [routes, house?.lat, house?.lng, hoveredHouse?.lat, hoveredHouse?.lng, schools]);
+  }, [routes, house?.lat, house?.lng, hoveredHouse?.lat, hoveredHouse?.lng, schools, allHouses]);
 
   return (
     <Map
@@ -137,6 +140,25 @@ const FamilyFinderMap = ({
           <div style={pinStyle('#16a34a')}>🏠 خانه</div>
         </Marker>
       )}
+
+      {allHouses.map((h) => (
+        <Marker key={`all-h-${h.token}`} longitude={h.lng} latitude={h.lat} anchor='bottom'>
+          <div
+            title={h.title}
+            onMouseEnter={() => onHouseHover?.({ lat: h.lat, lng: h.lng })}
+            onMouseLeave={() => onHouseHover?.(null)}
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: '#16a34a',
+              border: '1.5px solid white',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+              cursor: 'pointer',
+            }}
+          />
+        </Marker>
+      ))}
 
       {allSchools.map((s) => (
         <Marker
