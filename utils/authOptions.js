@@ -11,9 +11,11 @@ export const authOptions = {
       credentials: {
         phone: { label: 'شماره موبایل', type: 'text' },
         code: { label: 'کد تایید', type: 'text' },
+        firstName: { label: 'نام', type: 'text' },
+        lastName: { label: 'نام خانوادگی', type: 'text' },
       },
       async authorize(credentials) {
-        const { phone, code } = credentials || {};
+        const { phone, code, firstName, lastName } = credentials || {};
         if (!phone || !code) {
           console.log('[otp-auth] missing phone or code in credentials');
           return null;
@@ -55,10 +57,15 @@ export const authOptions = {
         try {
           let user = await User.findOne({ phone });
           if (!user) {
-            user = await User.create({ phone });
+            user = await User.create({ phone, firstName, lastName });
           }
           console.log(`[otp-auth] success, returning user id=${user._id}`);
-          return { id: user._id.toString(), phone: user.phone };
+          return {
+            id: user._id.toString(),
+            phone: user.phone,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          };
         } catch (err) {
           console.log(`[otp-auth] error creating/finding user: ${err.message}`);
           throw err;
@@ -77,12 +84,16 @@ export const authOptions = {
       if (user) {
         token.id = user.id;
         token.phone = user.phone;
+        token.firstName = user.firstName;
+        token.lastName = user.lastName;
       }
       return token;
     },
     async session({ session, token }) {
       session.user.id = token.id;
       session.user.phone = token.phone;
+      session.user.firstName = token.firstName;
+      session.user.lastName = token.lastName;
       return session;
     },
   },

@@ -83,7 +83,9 @@ const Navbar = () => {
                   >
                     ثبت آگهی
                   </Link>
-                  <span className='text-gray-500 text-sm'>{session.user.phone}</span>
+                  <span className='text-gray-500 text-sm'>
+                    {session.user.firstName ? `${session.user.firstName} ${session.user.lastName || ''}`.trim() : session.user.phone}
+                  </span>
                   <button
                     onClick={() => signOut({ callbackUrl: '/' })}
                     className='text-gray-600 hover:bg-gray-100 rounded-full px-4 py-2 text-sm font-semibold transition-colors'
@@ -154,7 +156,7 @@ const Navbar = () => {
                     }}
                     className='text-gray-600 block rounded-lg px-3 py-2 text-base font-semibold hover:bg-gray-100 w-full text-right'
                   >
-                    خروج ({session.user.phone})
+                    خروج ({session.user.firstName || session.user.phone})
                   </button>
                 </>
               ) : (

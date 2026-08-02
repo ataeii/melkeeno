@@ -27,6 +27,10 @@ const initialForm = {
   hasWarehouse: false,
   hasBalcony: false,
   isFurnished: false,
+  hasPool: false,
+  hasJacuzzi: false,
+  hasSauna: false,
+  hasRooftop: false,
   price: '',
   rent: '',
   deposit: '',
@@ -243,6 +247,10 @@ const SellPage = () => {
               { k: 'hasWarehouse', l: 'انباری' },
               { k: 'hasBalcony', l: 'بالکن' },
               { k: 'isFurnished', l: 'مبله' },
+              { k: 'hasPool', l: 'استخر' },
+              { k: 'hasJacuzzi', l: 'جکوزی' },
+              { k: 'hasSauna', l: 'سونا' },
+              { k: 'hasRooftop', l: 'روف تاپ / پشت‌بام' },
             ].map(({ k, l }) => (
               <label key={k} className='flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-1.5 cursor-pointer'>
                 <input type='checkbox' checked={form[k]} onChange={set(k)} />

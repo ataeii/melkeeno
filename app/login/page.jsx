@@ -14,6 +14,9 @@ const LoginPage = () => {
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
@@ -41,6 +44,7 @@ const LoginPage = () => {
       const data = await res.json();
 
       if (res.status === 200) {
+        setIsNewUser(!!data.isNewUser);
         setStep('code');
         setCooldown(60);
       } else if (res.status === 429) {
@@ -59,11 +63,17 @@ const LoginPage = () => {
 
   const verifyCode = async (e) => {
     e.preventDefault();
+    if (isNewUser && (!firstName.trim() || !lastName.trim())) {
+      toast.error('نام و نام خانوادگی را وارد کنید');
+      return;
+    }
     setSubmitting(true);
     try {
       const result = await signIn('credentials', {
         phone,
         code,
+        firstName,
+        lastName,
         redirect: false,
         callbackUrl,
       });
@@ -126,6 +136,38 @@ const LoginPage = () => {
                 onChange={(e) => setCode(e.target.value)}
               />
             </div>
+
+            {isNewUser && (
+              <div className='mb-4 grid grid-cols-2 gap-3'>
+                <div>
+                  <label className='block text-gray-700 text-sm font-bold mb-2' htmlFor='firstName'>
+                    نام:
+                  </label>
+                  <input
+                    className='shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline'
+                    id='firstName'
+                    type='text'
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className='block text-gray-700 text-sm font-bold mb-2' htmlFor='lastName'>
+                    نام خانوادگی:
+                  </label>
+                  <input
+                    className='shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline'
+                    id='lastName'
+                    type='text'
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
             <button
               className='bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full w-full focus:outline-none focus:shadow-outline disabled:opacity-50'
               type='submit'

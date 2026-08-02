@@ -151,6 +151,15 @@ const PropertyCard = ({ property, onClick, className }) => {
           {property.is_furnished && (
             <span className='bg-amber-50 text-amber-700 text-xs px-2 py-0.5 rounded-full'>مبله</span>
           )}
+          {property.has_pool && (
+            <span className='bg-cyan-50 text-cyan-700 text-xs px-2 py-0.5 rounded-full'>استخر</span>
+          )}
+          {property.has_jacuzzi && (
+            <span className='bg-cyan-50 text-cyan-700 text-xs px-2 py-0.5 rounded-full'>جکوزی</span>
+          )}
+          {property.has_sauna && (
+            <span className='bg-cyan-50 text-cyan-700 text-xs px-2 py-0.5 rounded-full'>سونا</span>
+          )}
         </div>
 
         {/* Footer */}

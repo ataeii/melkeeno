@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import connectDB from '@/config/database';
 import OtpCode from '@/models/OtpCode';
+import User from '@/models/User';
 import { sendOtpSms } from '@/lib/sms';
 
 const PHONE_REGEX = /^09\d{9}$/;
@@ -51,7 +52,9 @@ export const POST = async (request) => {
       });
     }
 
-    return new Response(JSON.stringify({ message: 'کد تایید ارسال شد' }), {
+    const existingUser = await User.findOne({ phone });
+
+    return new Response(JSON.stringify({ message: 'کد تایید ارسال شد', isNewUser: !existingUser }), {
       status: 200,
     });
   } catch (error) {

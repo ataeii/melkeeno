@@ -27,6 +27,10 @@ const UserListingSchema = new Schema(
     hasWarehouse: Boolean,
     hasBalcony: Boolean,
     isFurnished: Boolean,
+    hasPool: Boolean,
+    hasJacuzzi: Boolean,
+    hasSauna: Boolean,
+    hasRooftop: Boolean,
 
     price: Number, // buy
     rent: Number, // rent
