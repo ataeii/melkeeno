@@ -80,12 +80,18 @@ export const authOptions = {
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.phone = user.phone;
         token.firstName = user.firstName;
         token.lastName = user.lastName;
+      }
+      // Lets the client push fresh firstName/lastName into the session
+      // right after a profile edit, via useSession().update(...).
+      if (trigger === 'update' && session) {
+        if (session.firstName !== undefined) token.firstName = session.firstName;
+        if (session.lastName !== undefined) token.lastName = session.lastName;
       }
       return token;
     },
