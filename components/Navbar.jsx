@@ -2,9 +2,11 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { FaBars, FaTimes } from 'react-icons/fa';
 import AirQualityBadge from './AirQualityBadge';
+import logoIcon from '@/public/images/logo-icon.png';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -65,7 +67,8 @@ const Navbar = () => {
 
           {/* Logo — always centered */}
           <div className='flex justify-center'>
-            <Link href='/' className='flex items-center'>
+            <Link href='/' className='flex items-center gap-2'>
+              <Image src={logoIcon} alt='' width={36} height={36} className='rounded-lg' priority />
               <span className='text-navy-800 text-2xl font-extrabold tracking-tight'>
                 ملکینو
               </span>
@@ -83,9 +86,9 @@ const Navbar = () => {
                   >
                     ثبت آگهی
                   </Link>
-                  <span className='text-gray-500 text-sm'>
+                  <Link href='/profile' className='text-gray-600 hover:text-blue-600 text-sm font-semibold transition-colors'>
                     {session.user.firstName ? `${session.user.firstName} ${session.user.lastName || ''}`.trim() : session.user.phone}
-                  </span>
+                  </Link>
                   <button
                     onClick={() => signOut({ callbackUrl: '/' })}
                     className='text-gray-600 hover:bg-gray-100 rounded-full px-4 py-2 text-sm font-semibold transition-colors'
@@ -148,6 +151,15 @@ const Navbar = () => {
                     className='block rounded-lg px-3 py-2 text-base font-semibold bg-blue-600 text-white text-center'
                   >
                     ثبت آگهی
+                  </Link>
+                  <Link
+                    href='/profile'
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`${
+                      pathname === '/profile' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+                    } block rounded-lg px-3 py-2 text-base font-semibold hover:bg-blue-50 hover:text-blue-600`}
+                  >
+                    پروفایل ({session.user.firstName || session.user.phone})
                   </Link>
                   <button
                     onClick={() => {

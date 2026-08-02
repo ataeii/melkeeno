@@ -14,40 +14,41 @@ module.exports = {
         '70/30': '70% 28%',
       },
       colors: {
-        // Warm gold/amber brand scale (from the melkeeno hero photo shoot)
-        // — overrides Tailwind's default `blue`, so every existing
-        // bg-blue-*/text-blue-* class rebrands in place across the site.
+        // Warm gold/amber brand scale, sampled directly from the official
+        // ملکینو logo mark — overrides Tailwind's default `blue`, so every
+        // existing bg-blue-*/text-blue-* class rebrands in place site-wide.
         blue: {
-          50: '#FAF6EF',
-          100: '#F4EBDD',
-          200: '#E8D9BF',
-          300: '#D9C29B',
-          400: '#CAAD7D',
-          500: '#BD9D65',
-          600: '#A9844C',
-          700: '#8A6838',
-          800: '#6A4E29',
-          900: '#4E371D',
-          950: '#2D1F10',
+          50: '#FAF6F0',
+          100: '#F4EADC',
+          200: '#EAD8BE',
+          300: '#DDC197',
+          400: '#D2AD74',
+          500: '#C89A56',
+          600: '#B9873C',
+          700: '#926B2F',
+          800: '#705124',
+          900: '#513B1A',
+          950: '#2E220F',
         },
-        // Deep navy, used for the logo/wordmark and headings instead of the
-        // gold scale above (matches the two-tone palette from the hero photo).
+        // Deep navy from the logo mark, used for the logo/wordmark and
+        // headings instead of the gold scale above.
         navy: {
-          50: '#EFF4FB',
-          100: '#D7E4F4',
-          200: '#B3C9E6',
-          300: '#86A8D5',
-          400: '#5385C6',
-          500: '#3364A3',
-          600: '#285086',
-          700: '#214573',
-          800: '#1D395D',
-          900: '#152B47',
-          950: '#0B1828',
+          50: '#F0F4FA',
+          100: '#DAE5F1',
+          200: '#B4CAE4',
+          300: '#87ABD4',
+          400: '#5689C2',
+          500: '#39689D',
+          600: '#2E547F',
+          700: '#27486D',
+          800: '#203A58',
+          900: '#182C43',
+          950: '#0E1925',
         },
+        // Background cream, sampled from the logo mark's backdrop.
         cream: {
-          DEFAULT: '#F7F0E7',
-          dark: '#EEE3D2',
+          DEFAULT: '#F9F5EC',
+          dark: '#EFE6D5',
         },
       },
     },
