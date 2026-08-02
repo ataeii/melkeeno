@@ -33,6 +33,14 @@ const Navbar = () => {
             >
               پیشنهاد محله
             </Link>
+            <Link
+              href='/properties/saved'
+              className={`${
+                pathname === '/properties/saved' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+              } hover:bg-blue-50 hover:text-blue-600 rounded-full px-4 py-2 text-sm font-semibold transition-colors`}
+            >
+              ذخیره‌شده‌ها
+            </Link>
             <AirQualityBadge />
           </div>
 
@@ -110,6 +118,15 @@ const Navbar = () => {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               پیشنهاد محله
+            </Link>
+            <Link
+              href='/properties/saved'
+              className={`${
+                pathname === '/properties/saved' ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+              } block rounded-lg px-3 py-2 text-base font-semibold hover:bg-blue-50 hover:text-blue-600`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              ذخیره‌شده‌ها
             </Link>
             <div className='px-3 py-2'>
               <AirQualityBadge />

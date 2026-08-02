@@ -1,5 +1,6 @@
 'use client';
 import { FaBed, FaRulerCombined, FaBuilding, FaUserFriends } from 'react-icons/fa';
+import BookmarkToggle from './BookmarkToggle';
 
 function formatPrice(price) {
   if (!price || price === 0) return null;
@@ -71,6 +72,13 @@ const PropertyCard = ({ property, onClick, className }) => {
             ? 'اجاره'
             : 'فروش'}
         </div>
+
+        {/* Bookmark toggle */}
+        <BookmarkToggle
+          type='listing'
+          id={property.token}
+          className='absolute bottom-2 left-2 bg-white w-8 h-8 shadow text-base'
+        />
       </div>
 
       {/* Body */}

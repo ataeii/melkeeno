@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import PropertyCard from '@/components/PropertyCard';
 import SchoolSearchInput from '@/components/SchoolSearchInput';
+import BookmarkToggle from '@/components/BookmarkToggle';
 import {
   matchListings,
   matchCustomHouse,
@@ -473,13 +474,16 @@ const FamilyFinderPage = () => {
                               </div>
                             )}
                           </div>
-                          <button
-                            onClick={() => addNearbySchoolToList(s)}
-                            title='انتخاب به عنوان مدرسه'
-                            className='text-teal-600 hover:text-teal-800'
-                          >
-                            <FaPlus className='text-xs' />
-                          </button>
+                          <div className='flex items-center gap-1 flex-shrink-0'>
+                            <BookmarkToggle type='school' id={s.id} className='w-6 h-6 text-xs' />
+                            <button
+                              onClick={() => addNearbySchoolToList(s)}
+                              title='انتخاب به عنوان مدرسه'
+                              className='text-teal-600 hover:text-teal-800'
+                            >
+                              <FaPlus className='text-xs' />
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}

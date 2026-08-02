@@ -1,6 +1,7 @@
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import AuthProvider from '@/components/AuthProvider';
+import { BookmarksProvider } from '@/context/BookmarksContext';
 import { ToastContainer } from 'react-toastify';
 import '@/assets/styles/globals.css';
 import 'react-toastify/dist/ReactToastify.css';
@@ -54,10 +55,12 @@ const MainLayout = ({ children }) => {
       </head>
       <body className='bg-cream text-gray-900'>
         <AuthProvider>
-          <Navbar />
-          <main>{children}</main>
-          <Footer />
-          <ToastContainer />
+          <BookmarksProvider>
+            <Navbar />
+            <main>{children}</main>
+            <Footer />
+            <ToastContainer />
+          </BookmarksProvider>
         </AuthProvider>
       </body>
     </html>

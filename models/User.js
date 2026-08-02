@@ -20,6 +20,11 @@ const UserSchema = new Schema(
         ref: 'Property',
       },
     ],
+    // Scraped Divar listings (token) and scraped schools (id) — these live
+    // in the separate SQLite-backed scraper API, not MongoDB, so they're
+    // stored as plain identifiers rather than a Property ref.
+    bookmarkedListings: [{ type: String }],
+    bookmarkedSchools: [{ type: Number }],
   },
   {
     timestamps: true,
