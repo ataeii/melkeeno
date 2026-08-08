@@ -37,12 +37,14 @@ const VERDICT_LABEL = {
  */
 const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
   if (!estimate || !estimate.typical || !ownPrice) return null;
-  const { typical, verdict, verdictPct, confidence, compCount, compPpm2, flag } = estimate;
+  const { typical, min, max, verdict, verdictPct, confidence, compCount, compPpm2, flag } = estimate;
   const isDecoy = flag === 'decoy';
   const ratio = ownPrice / typical;
   const lowConfidence = confidence === 'low';
   const position = positionFor(ratio);
   const unit = kind === 'rent' ? 'تومان/ماه' : 'تومان';
+  const fairMinPos = min ? positionFor(min / typical) : null;
+  const fairMaxPos = max ? positionFor(max / typical) : null;
 
   return (
     <div className='mb-2 bg-gray-50 rounded-lg px-2.5 py-2'>
@@ -79,6 +81,13 @@ const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
       ) : (
         <>
           <div dir='ltr' className='relative h-2 rounded-full' style={{ background: lowConfidence ? '#e5e7eb' : gaugeGradient }}>
+            {fairMinPos != null && fairMaxPos != null && (
+              <div
+                className='absolute top-0 h-full bg-white/60 border-x border-white'
+                style={{ left: `${fairMinPos}%`, width: `${fairMaxPos - fairMinPos}%` }}
+                title='محدوده منصفانه'
+              />
+            )}
             <div
               className='absolute top-1/2 w-3 h-3 rounded-full bg-white border-2 border-gray-700 shadow'
               style={{ left: `${position}%`, transform: 'translate(-50%, -50%)' }}
@@ -91,6 +100,12 @@ const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
             <span>{formatToman(typical)} (میانه)</span>
             <span>{formatToman(typical * (1 + WINDOW))}</span>
           </div>
+
+          {min != null && max != null && (
+            <p className='text-[10px] text-gray-500 mt-1'>
+              محدوده منصفانه: {formatToman(min)} تا {formatToman(max)} {unit}
+            </p>
+          )}
 
           {lowConfidence && (
             <p className='text-[10px] text-gray-400 mt-1'>

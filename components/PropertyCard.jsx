@@ -18,6 +18,8 @@ const PriceEstimateBadge = ({ property }) => {
         kind='sale'
         estimate={{
           typical: property.price_range_typical,
+          min: property.price_range_min,
+          max: property.price_range_max,
           verdict: property.price_verdict,
           verdictPct: property.price_verdict_pct,
           confidence: property.price_confidence,
@@ -35,6 +37,8 @@ const PriceEstimateBadge = ({ property }) => {
         kind='rent'
         estimate={{
           typical: property.rent_range_typical,
+          min: property.rent_range_min,
+          max: property.rent_range_max,
           verdict: property.rent_verdict,
           verdictPct: property.rent_verdict_pct,
           confidence: property.rent_confidence,
