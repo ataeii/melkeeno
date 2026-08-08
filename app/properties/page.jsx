@@ -8,7 +8,7 @@ import { FaHospital, FaSchool, FaTimes } from 'react-icons/fa';
 const SearchMap = dynamic(() => import('@/components/SearchMap'), { ssr: false });
 
 const FILTER_DEFAULTS = {
-  listing_type: 'buy,rent',
+  listing_type: 'buy',
   district: '',
   rooms: '',
   min_area: '',
@@ -124,7 +124,6 @@ const PropertiesPage = () => {
           value={filters.listing_type}
           onChange={(e) => handleFilterChange('listing_type', e.target.value)}
         >
-          <option value='buy,rent'>خرید و اجاره</option>
           <option value='buy'>خرید</option>
           <option value='rent'>اجاره</option>
           <option value='short_term'>اجاره کوتاه‌مدت</option>

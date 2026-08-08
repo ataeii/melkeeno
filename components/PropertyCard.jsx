@@ -1,6 +1,7 @@
 'use client';
 import { FaBed, FaRulerCombined, FaBuilding, FaUserFriends } from 'react-icons/fa';
 import BookmarkToggle from './BookmarkToggle';
+import PriceGauge from './PriceGauge';
 
 function formatPrice(price) {
   if (!price || price === 0) return null;
@@ -8,6 +9,44 @@ function formatPrice(price) {
   if (price >= 1e6) return (price / 1e6).toFixed(0) + ' میلیون';
   return price.toLocaleString();
 }
+
+const PriceEstimateBadge = ({ property }) => {
+  if (property.listing_type === 'buy' && property.price_range_typical) {
+    return (
+      <PriceGauge
+        ownPrice={property.price}
+        kind='sale'
+        estimate={{
+          typical: property.price_range_typical,
+          verdict: property.price_verdict,
+          verdictPct: property.price_verdict_pct,
+          confidence: property.price_confidence,
+          compCount: property.price_comp_count,
+          compPpm2: property.price_comp_ppm2,
+          flag: property.price_flag,
+        }}
+      />
+    );
+  }
+  if (property.listing_type === 'rent' && property.rent_range_typical) {
+    return (
+      <PriceGauge
+        ownPrice={property.rent_equiv}
+        kind='rent'
+        estimate={{
+          typical: property.rent_range_typical,
+          verdict: property.rent_verdict,
+          verdictPct: property.rent_verdict_pct,
+          confidence: property.rent_confidence,
+          compCount: property.rent_comp_count,
+          compPpm2: property.rent_comp_ppm2,
+          flag: property.rent_flag,
+        }}
+      />
+    );
+  }
+  return null;
+};
 
 const PropertyCard = ({ property, onClick, className }) => {
   const priceDisplay =
@@ -134,6 +173,8 @@ const PropertyCard = ({ property, onClick, className }) => {
           )}
         </div>
 
+        <PriceEstimateBadge property={property} />
+
         {/* Amenity badges */}
         <div className='flex flex-wrap gap-1 mb-2'>
           {property.has_parking && (
@@ -175,7 +216,7 @@ const PropertyCard = ({ property, onClick, className }) => {
               onClick={(e) => e.stopPropagation()}
               className='text-xs text-blue-600 hover:text-blue-800 hover:underline mr-auto'
             >
-              مشاهده در دیوار ↗
+              {property.source === 'kilid' ? 'مشاهده در کیلید ↗' : 'مشاهده در دیوار ↗'}
             </a>
           )}
         </div>
