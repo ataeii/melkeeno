@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import logoIcon from '@/public/images/logo-icon.png';
 
 const Footer = () => {
@@ -11,6 +12,9 @@ const Footer = () => {
           <Image src={logoIcon} alt='' width={28} height={28} className='rounded-md' />
           ملکینو
         </span>
+        <Link href='/contact' className='text-sm text-gray-500 hover:text-blue-600 font-semibold transition-colors'>
+          تماس با ما
+        </Link>
         <p className='text-sm text-gray-400'>
           &copy; {currentYear} ملکینو. تمامی حقوق محفوظ است.
         </p>

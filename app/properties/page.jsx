@@ -211,7 +211,7 @@ const PropertiesPage = () => {
       <div className='flex flex-1 overflow-hidden'>
         {/* Left panel: listing cards */}
         <div
-          className='w-[400px] flex-shrink-0 overflow-y-auto bg-gray-50'
+          className='w-1/2 flex-shrink-0 overflow-y-auto bg-gray-50'
           style={{ height: 'calc(100vh - 64px)' }}
           dir='rtl'
         >

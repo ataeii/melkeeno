@@ -52,7 +52,7 @@ const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
         <span className='text-[11px] text-gray-500'>
           {compPpm2 ? `میانگین منطقه: ${formatToman(compPpm2)} تومان/متر` : 'برآورد قیمت منطقه'}
         </span>
-        {!isDecoy && !lowConfidence && verdict && (
+        {!isDecoy && verdict && (
           <span
             className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
               verdict === 'below_market'
@@ -80,7 +80,7 @@ const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
         </p>
       ) : (
         <>
-          <div dir='ltr' className='relative h-2 rounded-full' style={{ background: lowConfidence ? '#e5e7eb' : gaugeGradient }}>
+          <div dir='ltr' className='relative h-2 rounded-full' style={{ background: gaugeGradient }}>
             {fairMinPos != null && fairMaxPos != null && (
               <div
                 className='absolute top-0 h-full bg-white/60 border-x border-white'

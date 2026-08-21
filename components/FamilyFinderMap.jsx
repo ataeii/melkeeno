@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Map, Marker, Source, Layer } from 'react-map-gl/maplibre';
 
 const ROUTE_COLORS = ['#0052ab', '#c2410c', '#0f766e', '#7c3aed', '#be123c', '#a16207'];
@@ -36,18 +36,36 @@ const FamilyFinderMap = ({
   onSchoolMarkerClick,
   allHouses = [],
   onHouseHover,
+  onHouseClick,
   activeMode,
   onMapClick,
   routes = [],
   house = null,
   hoveredHouse = null,
+  // The "~10 nearby schools" view for a picked house -- plain dots + hover
+  // tooltip instead of full driving routes (10 crossing route lines would
+  // be unreadable clutter, and the point here is just "what's around here",
+  // not turn-by-turn). hoveredNearbySchoolId/onNearbySchoolHover let the
+  // list panel and the map dots highlight each other in sync, same pattern
+  // as the house list already uses with hoveredHouse.
+  nearbySchoolDots = [],
+  hoveredNearbySchoolId = null,
+  onNearbySchoolHover,
 }) => {
   const mapRef = useRef(null);
+  const [tooltipSchool, setTooltipSchool] = useState(null);
 
   // Fit the view to whatever is currently being shown (routes + pins) so
   // short urban routes are actually visible following streets, instead of
   // sitting inside the default city-wide zoom where a 1-3km route looks
   // almost like a straight line regardless of how accurate it really is.
+  // While browsing all houses on the map, everything is already visible in
+  // one wide shot — refitting on every hover would fight the user's own
+  // zoom/pan (which is exactly what they're trying to do to pick a house).
+  // So the hover preview only drives a refit when we're NOT already showing
+  // that wide view.
+  const trackHoverForBounds = allHouses.length === 0;
+
   useEffect(() => {
     const map = mapRef.current?.getMap?.();
     if (!map) return;
@@ -55,9 +73,10 @@ const FamilyFinderMap = ({
     const points = [];
     routes.forEach((r) => r.geometry?.forEach(([lng, lat]) => points.push([lng, lat])));
     if (house) points.push([house.lng, house.lat]);
-    if (hoveredHouse) points.push([hoveredHouse.lng, hoveredHouse.lat]);
+    if (hoveredHouse && trackHoverForBounds) points.push([hoveredHouse.lng, hoveredHouse.lat]);
     schools.forEach((s) => points.push([s.lng, s.lat]));
     allHouses.forEach((h) => points.push([h.lng, h.lat]));
+    nearbySchoolDots.forEach((s) => points.push([s.lng, s.lat]));
 
     if (points.length < 2) return;
 
@@ -68,7 +87,16 @@ const FamilyFinderMap = ({
       [Math.max(...lngs), Math.max(...lats)],
     ];
     map.fitBounds(bounds, { padding: 70, duration: 600, maxZoom: 16 });
-  }, [routes, house?.lat, house?.lng, hoveredHouse?.lat, hoveredHouse?.lng, schools, allHouses]);
+  }, [
+    routes,
+    house?.lat,
+    house?.lng,
+    trackHoverForBounds ? hoveredHouse?.lat : undefined,
+    trackHoverForBounds ? hoveredHouse?.lng : undefined,
+    nearbySchoolDots,
+    schools,
+    allHouses,
+  ]);
 
   return (
     <Map
@@ -142,7 +170,16 @@ const FamilyFinderMap = ({
       )}
 
       {allHouses.map((h) => (
-        <Marker key={`all-h-${h.token}`} longitude={h.lng} latitude={h.lat} anchor='bottom'>
+        <Marker
+          key={`all-h-${h.token}`}
+          longitude={h.lng}
+          latitude={h.lat}
+          anchor='bottom'
+          onClick={(e) => {
+            e.originalEvent?.stopPropagation();
+            onHouseClick?.(h);
+          }}
+        >
           <div
             title={h.title}
             onMouseEnter={() => onHouseHover?.({ lat: h.lat, lng: h.lng })}
@@ -197,6 +234,65 @@ const FamilyFinderMap = ({
           </Marker>
         );
       })}
+
+      {nearbySchoolDots.map((s) => {
+        const isHighlighted = hoveredNearbySchoolId === s.id || tooltipSchool?.id === s.id;
+        return (
+          <Marker key={`near-s-${s.id}`} longitude={s.lng} latitude={s.lat} anchor='center'>
+            <div
+              onMouseEnter={() => {
+                setTooltipSchool(s);
+                onNearbySchoolHover?.(s.id);
+              }}
+              onMouseLeave={() => {
+                setTooltipSchool(null);
+                onNearbySchoolHover?.(null);
+              }}
+              style={{
+                width: isHighlighted ? 16 : 11,
+                height: isHighlighted ? 16 : 11,
+                borderRadius: '50%',
+                background: '#dc2626',
+                border: '2px solid white',
+                boxShadow: isHighlighted ? '0 2px 8px rgba(220,38,38,0.7)' : '0 1px 3px rgba(0,0,0,0.4)',
+                cursor: 'pointer',
+                transition: 'width 0.12s, height 0.12s',
+              }}
+            />
+          </Marker>
+        );
+      })}
+
+      {/* Hover tooltip for nearby-school dots -- richer than a native title
+          attribute, and shared between hovering the dot itself and hovering
+          the matching row in the list panel (see hoveredNearbySchoolId). */}
+      {tooltipSchool && (
+        <Marker longitude={tooltipSchool.lng} latitude={tooltipSchool.lat} anchor='bottom' offset={[0, -14]}>
+          <div
+            style={{
+              background: 'white',
+              color: '#1f2937',
+              borderRadius: '10px',
+              padding: '8px 10px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+              border: '1px solid #e5e7eb',
+              fontSize: '12px',
+              whiteSpace: 'nowrap',
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ fontWeight: 'bold' }}>🏫 {tooltipSchool.name}</div>
+            {shortSchoolLabel(tooltipSchool) && (
+              <div style={{ color: '#6b7280', fontSize: '11px' }}>{shortSchoolLabel(tooltipSchool)}</div>
+            )}
+            {tooltipSchool.duration_min != null && (
+              <div style={{ color: '#dc2626', fontSize: '11px', fontWeight: 'bold' }}>
+                {tooltipSchool.duration_min} دقیقه با ماشین
+              </div>
+            )}
+          </div>
+        </Marker>
+      )}
     </Map>
   );
 };

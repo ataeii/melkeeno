@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import PropertyCard from '@/components/PropertyCard';
 import SchoolSearchInput from '@/components/SchoolSearchInput';
@@ -148,6 +148,10 @@ const FamilyFinderPage = () => {
     setSelectedHouseToken(house.token);
     setSelectedToken(null);
     resetHouseCalculations();
+    // Nearby schools load automatically on pick now, no separate button --
+    // pass the coords directly rather than relying on the `customHouse`
+    // state var, which wouldn't be updated yet inside this same tick.
+    handleFindNearbySchools({ lat: house.lat, lng: house.lng });
   };
 
   const clearSelectedHouse = () => {
@@ -193,12 +197,13 @@ const FamilyFinderPage = () => {
     }
   };
 
-  const handleFindNearbySchools = async () => {
-    if (!customHouse) return;
+  const handleFindNearbySchools = async (point) => {
+    const target = point || customHouse;
+    if (!target) return;
     setNearbyLoading(true);
     setError(null);
     try {
-      const data = await nearbySchools({ lat: customHouse.lat, lng: customHouse.lng });
+      const data = await nearbySchools({ lat: target.lat, lng: target.lng });
       setNearbyResults(data);
       setNearbyActive(true);
       setCustomActive(false);
@@ -227,11 +232,23 @@ const FamilyFinderPage = () => {
     : selectedResult
     ? { lat: selectedResult.lat, lng: selectedResult.lng }
     : null;
-  const mapRoutes = customActive
-    ? customInfo?.routes || []
-    : nearbyActive
-    ? (nearbyResults || []).map((s) => ({ ...s, label: s.name }))
-    : selectedResult?.routes || [];
+  // Memoized so this stays referentially stable across renders that don't
+  // actually change it (e.g. hover state updates) — otherwise the map's
+  // fitBounds effect (which depends on this array) refires on every
+  // unrelated re-render and fights the user's manual zoom/pan.
+  const mapRoutes = useMemo(() => {
+    if (customActive) return customInfo?.routes || [];
+    return selectedResult?.routes || [];
+  }, [customActive, customInfo, selectedResult]);
+
+  // Nearby schools are shown as plain hoverable dots, not full driving
+  // routes — 10 crossing route lines would be unreadable, and the point
+  // here is just "what's around this house", not turn-by-turn directions.
+  const nearbySchoolDots = useMemo(
+    () => (nearbyActive ? nearbyResults || [] : []),
+    [nearbyActive, nearbyResults]
+  );
+  const [hoveredNearbySchoolId, setHoveredNearbySchoolId] = useState(null);
 
   const [servicesInfo, setServicesInfo] = useState(null);
   const [servicesLoading, setServicesLoading] = useState(false);
@@ -448,22 +465,23 @@ const FamilyFinderPage = () => {
                   </p>
                 )}
 
-                <button
-                  onClick={handleFindNearbySchools}
-                  disabled={nearbyLoading}
-                  className='w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg transition-colors'
-                >
-                  {nearbyLoading ? 'در حال جستجو...' : 'پیشنهاد ۳ مدرسه نزدیک'}
-                </button>
+                <div className='flex items-center justify-between text-xs font-semibold text-teal-700 mb-1'>
+                  <span>🏫 مدرسه‌های نزدیک</span>
+                  {nearbyLoading && <span className='text-gray-400 font-normal'>در حال جستجو...</span>}
+                </div>
                 {nearbyResults && nearbyActive && (
-                  <div className='flex flex-col gap-1 mt-2'>
+                  <div className='flex flex-col gap-1 mt-2 max-h-[360px] overflow-y-auto'>
                     {nearbyResults.length === 0 ? (
                       <p className='text-xs text-gray-400 text-center'>مدرسه‌ای یافت نشد</p>
                     ) : (
                       nearbyResults.map((s) => (
                         <div
                           key={s.id}
-                          className='flex items-center justify-between text-xs bg-teal-50 rounded-lg px-2 py-1.5'
+                          onMouseEnter={() => setHoveredNearbySchoolId(s.id)}
+                          onMouseLeave={() => setHoveredNearbySchoolId(null)}
+                          className={`flex items-center justify-between text-xs rounded-lg px-2 py-1.5 transition-colors ${
+                            hoveredNearbySchoolId === s.id ? 'bg-teal-100' : 'bg-teal-50'
+                          }`}
                         >
                           <div className='text-gray-700'>
                             <span className='font-semibold'>{s.name}</span>
@@ -520,13 +538,20 @@ const FamilyFinderPage = () => {
             schools={schools}
             allSchools={mode === 'school' ? allSchools : []}
             onSchoolMarkerClick={handleSchoolSelect}
-            allHouses={mode === 'house' ? houses : []}
+            // Once a house is picked, the map focuses on it (+ its nearby
+            // schools) instead of staying cluttered with every house dot --
+            // the list panel is still the full picker, this is now a detail view.
+            allHouses={mode === 'house' && !selectedHouseToken ? houses : []}
             onHouseHover={setHoveredHouse}
+            onHouseClick={selectHouseFromList}
             activeMode={mode === 'house' ? null : mode}
             onMapClick={handleMapClick}
             routes={mapRoutes}
             house={mapHouse}
             hoveredHouse={hoveredHouse}
+            nearbySchoolDots={nearbySchoolDots}
+            hoveredNearbySchoolId={hoveredNearbySchoolId}
+            onNearbySchoolHover={setHoveredNearbySchoolId}
           />
         </div>
       </div>

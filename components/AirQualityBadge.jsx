@@ -31,7 +31,7 @@ const AirQualityBadge = ({ className = '' }) => {
       target='_blank'
       rel='noopener noreferrer'
       title={`آلاینده غالب: ${aqi.aqi_now_pollutant || '-'} · منبع: ${aqi.source}`}
-      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${c.bg} ${c.text} ${className}`}
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${c.bg} ${c.text} ${className}`}
     >
       <span className={`w-2 h-2 rounded-full ${c.dot}`} />
       <span>هوای تهران: {aqi.aqi_now_category} ({aqi.aqi_now})</span>

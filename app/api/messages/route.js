@@ -1,6 +1,7 @@
 import connectDB from '@/config/database';
 import Message from '@/models/Message';
 import { getSessionUser } from '@/utils/getSessionUser';
+import { notifyAdmin } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +80,10 @@ export const POST = async (request) => {
     });
 
     await newMessage.save();
+
+    await notifyAdmin(
+      `✉️ پیام جدید از ${name}\n📞 ${phone || '—'}\n${message}`
+    );
 
     return new Response(JSON.stringify({ message: 'Message Sent' }), {
       status: 200,

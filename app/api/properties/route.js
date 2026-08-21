@@ -2,6 +2,7 @@ import connectDB from '@/config/database';
 import Property from '@/models/Property';
 import { getSessionUser } from '@/utils/getSessionUser';
 import cloudinary from '@/config/cloudinary';
+import { notifyAdmin } from '@/lib/telegram';
 
 // GET /api/properties
 export const GET = async (request) => {
@@ -107,6 +108,11 @@ export const POST = async (request) => {
 
     const newProperty = new Property(propertyData);
     await newProperty.save();
+
+    await notifyAdmin(
+      `🏠 آگهی جدید ثبت شد\n${newProperty.name}\n` +
+        `https://melkeeno.ir/properties/${newProperty._id}`
+    );
 
     return Response.redirect(
       `${process.env.NEXTAUTH_URL}/properties/${newProperty._id}`
