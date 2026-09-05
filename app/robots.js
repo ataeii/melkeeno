@@ -7,6 +7,7 @@ export default function robots() {
       allow: '/',
       disallow: [
         '/properties/add',
+        '/properties/sell',
         '/properties/*/edit',
         '/properties/saved',
         '/messages',

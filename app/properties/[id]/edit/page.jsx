@@ -1,5 +1,9 @@
 import PropertyEditForm from '@/components/PropertyEditForm';
 
+export const metadata = {
+  robots: { index: false, follow: false },
+};
+
 const PropertyEditPage = () => {
   return (
     <section className='bg-blue-50'>
