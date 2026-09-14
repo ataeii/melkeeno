@@ -1,6 +1,7 @@
 import connectDB from '@/config/database';
 import SchoolReview from '@/models/SchoolReview';
 import { getSessionUser } from '@/utils/getSessionUser';
+import { notifyAdmin } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,10 @@ export const POST = async (request) => {
       rating,
       comment,
     });
+
+    await notifyAdmin(
+      `⭐ نظر جدید برای مدرسه\nمدرسه: ${schoolName}\nنویسنده: ${authorName}\nامتیاز: ${rating}/۵\nمتن: ${comment}`
+    );
 
     return Response.json(review, { status: 201 });
   } catch (error) {

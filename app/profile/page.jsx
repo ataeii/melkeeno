@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import { toast } from 'react-toastify';
 import Spinner from '@/components/Spinner';
 
@@ -86,6 +87,14 @@ const ProfilePage = () => {
           {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
         </button>
       </form>
+
+      <Link
+        href='/profile/office'
+        className='flex items-center justify-between bg-white rounded-xl border border-gray-100 shadow-sm p-4 mt-4 hover:border-blue-300 transition-colors'
+      >
+        <span className='text-sm font-semibold text-gray-700'>🏢 مدیریت دفتر املاک</span>
+        <span className='text-blue-600 text-sm'>ثبت یا ویرایش ←</span>
+      </Link>
     </section>
   );
 };

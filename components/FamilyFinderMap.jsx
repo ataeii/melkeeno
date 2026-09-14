@@ -4,6 +4,17 @@ import { Map, Marker, Source, Layer } from 'react-map-gl/maplibre';
 
 const ROUTE_COLORS = ['#0052ab', '#c2410c', '#0f766e', '#7c3aed', '#be123c', '#a16207'];
 
+// Same Tehran extent used server-side (scraper's TEHRAN_BBOX) -- north
+// Tehran (Darband/Niavaran/Velenjak, up toward the Alborz foothills) was
+// getting cut off because the reactive fitBounds effect below was fitting
+// to wherever the scraped house listings actually cluster, not the full
+// city; this fixed bound is what the page shows by default before/without
+// any real selection driving a tighter fit.
+const TEHRAN_BOUNDS = [
+  [51.15, 35.55],
+  [51.65, 35.85],
+];
+
 const shortSchoolLabel = (s) => {
   const text = s.base_level || '';
   let level = null;
@@ -70,12 +81,15 @@ const FamilyFinderMap = ({
     const map = mapRef.current?.getMap?.();
     if (!map) return;
 
+    // Deliberately excludes `allHouses` -- fitting to wherever the scraped
+    // listings happen to cluster is what cut off north Tehran by default.
+    // Browsing mode keeps the fixed full-city view (set on load below);
+    // this effect only tightens the view once there's an actual selection.
     const points = [];
     routes.forEach((r) => r.geometry?.forEach(([lng, lat]) => points.push([lng, lat])));
     if (house) points.push([house.lng, house.lat]);
     if (hoveredHouse && trackHoverForBounds) points.push([hoveredHouse.lng, hoveredHouse.lat]);
     schools.forEach((s) => points.push([s.lng, s.lat]));
-    allHouses.forEach((h) => points.push([h.lng, h.lat]));
     nearbySchoolDots.forEach((s) => points.push([s.lng, s.lat]));
 
     if (points.length < 2) return;
@@ -95,16 +109,16 @@ const FamilyFinderMap = ({
     trackHoverForBounds ? hoveredHouse?.lng : undefined,
     nearbySchoolDots,
     schools,
-    allHouses,
   ]);
 
   return (
     <Map
       ref={mapRef}
-      initialViewState={{ longitude: 51.404, latitude: 35.715, zoom: 11 }}
+      initialViewState={{ bounds: TEHRAN_BOUNDS, fitBoundsOptions: { padding: 20 } }}
+      onLoad={(e) => e.target.fitBounds(TEHRAN_BOUNDS, { padding: 20, duration: 0 })}
       style={{ width: '100%', height: '100%' }}
       mapStyle='https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
-      onClick={(e) => onMapClick(e.lngLat.lat, e.lngLat.lng)}
+      onClick={(e) => onMapClick?.(e.lngLat.lat, e.lngLat.lng)}
       cursor={activeMode ? 'crosshair' : 'grab'}
     >
       {routes.map((r, i) => {

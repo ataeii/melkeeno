@@ -1,13 +1,22 @@
 import Link from 'next/link';
-import ListingCard from '@/components/ListingCard';
-import { fetchProperties } from '@/utils/requests';
+import PropertyCard from '@/components/PropertyCard';
+import { fetchListings } from '@/lib/api';
 
+// Was reading from the old MongoDB Property collection (fetchProperties/
+// utils/requests.js) -- the site's real inventory is the scraped Divar/Kilid
+// data served by the FastAPI backend, same source /properties uses. That
+// mismatch is why this section always rendered empty: the Property
+// collection has essentially nothing in it.
 const HomeProperties = async () => {
-  const data = await fetchProperties();
-
-  const recentProperties = data.properties
-    .sort(() => Math.random() - Math.random())
-    .slice(0, 3);
+  let recentProperties = [];
+  try {
+    const listings = await fetchListings({ listing_type: 'buy,rent' });
+    recentProperties = (Array.isArray(listings) ? listings : [])
+      .sort(() => Math.random() - Math.random())
+      .slice(0, 3);
+  } catch {
+    recentProperties = [];
+  }
 
   return (
     <>
@@ -21,7 +30,7 @@ const HomeProperties = async () => {
               <p className='text-center text-gray-400 col-span-full'>آگهی‌ای یافت نشد</p>
             ) : (
               recentProperties.map((property) => (
-                <ListingCard key={property._id} property={property} />
+                <PropertyCard key={property.token} property={property} />
               ))
             )}
           </div>

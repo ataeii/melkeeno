@@ -1,6 +1,7 @@
 import connectDB from '@/config/database';
 import ArticleComment from '@/models/ArticleComment';
 import { getSessionUser } from '@/utils/getSessionUser';
+import { notifyAdmin } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,9 @@ export const POST = async (request) => {
     }
 
     const created = await ArticleComment.create({ articleSlug, comment, authorName, userId });
+
+    await notifyAdmin(`💬 نظر جدید روی مقاله\nمقاله: ${articleSlug}\nنویسنده: ${authorName}\nمتن: ${comment}`);
+
     return Response.json(created, { status: 201 });
   } catch (error) {
     console.log(error);

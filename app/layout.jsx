@@ -10,8 +10,8 @@ const DOMAIN = 'https://melkeeno.ir';
 
 export const metadata = {
   metadataBase: new URL(DOMAIN),
-  title: 'زمین | جستجوی ملک در ایران',
-  description: 'جستجوی ملک، آپارتمان و زمین در سراسر ایران',
+  title: 'ملکینو | جستجوی هوشمند ملک در تهران',
+  description: 'جست‌وجوی ملک، آپارتمان و زمین در تهران با تحلیل قیمت منصفانه و امکانات محله.',
   keywords: 'ملک، آپارتمان، اجاره، خرید، زمین، مسکن',
   openGraph: {
     siteName: 'ملکینو',

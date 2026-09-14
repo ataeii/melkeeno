@@ -19,6 +19,37 @@ const getArticle = async (slug) => {
   return JSON.parse(JSON.stringify(article));
 };
 
+// The "زبان الگو" (Pattern Language) series had zero links between entries
+// -- each one was an island only reachable via the flat /articles list or
+// the sitemap, with no way for a reader (or crawler) to walk the series.
+// This derives prev/next from the live DB rather than baking links into
+// each article's stored content, so it stays correct automatically as new
+// entries are added without editing past documents.
+const SERIES_SLUG_RE = /^zaban-olgo-book(\d+)-/;
+
+const getSeriesNav = async (slug) => {
+  const match = slug.match(SERIES_SLUG_RE);
+  if (!match) return null;
+
+  await connectDB();
+  const entries = await Article.find({ slug: { $regex: '^zaban-olgo-book\\d+-' }, status: 'published' })
+    .select('slug title')
+    .lean();
+
+  const numbered = entries
+    .map((e) => ({ ...e, num: parseInt(e.slug.match(SERIES_SLUG_RE)[1], 10) }))
+    .sort((a, b) => a.num - b.num);
+
+  const currentNum = parseInt(match[1], 10);
+  const index = numbered.findIndex((e) => e.num === currentNum);
+  if (index === -1) return null;
+
+  return {
+    prev: index > 0 ? numbered[index - 1] : null,
+    next: index < numbered.length - 1 ? numbered[index + 1] : null,
+  };
+};
+
 export async function generateMetadata({ params }) {
   const article = await getArticle(params.slug);
   if (!article) return { title: 'مقاله یافت نشد' };
@@ -73,6 +104,7 @@ const Block = ({ block }) => {
 const ArticlePage = async ({ params }) => {
   const article = await getArticle(params.slug);
   if (!article) notFound();
+  const seriesNav = await getSeriesNav(article.slug);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -112,6 +144,33 @@ const ArticlePage = async ({ params }) => {
           <Block key={i} block={block} />
         ))}
       </div>
+
+      {seriesNav && (seriesNav.prev || seriesNav.next) && (
+        <div className='mt-8 pt-6 border-t border-gray-100 grid grid-cols-2 gap-3'>
+          {seriesNav.prev ? (
+            <Link
+              href={`/articles/${seriesNav.prev.slug}`}
+              className='bg-gray-50 hover:bg-gray-100 rounded-xl p-3 text-sm transition-colors'
+            >
+              <span className='text-gray-400 text-xs block mb-1'>← الگوی قبلی</span>
+              <span className='text-gray-800 font-semibold line-clamp-2'>{seriesNav.prev.title}</span>
+            </Link>
+          ) : (
+            <div />
+          )}
+          {seriesNav.next ? (
+            <Link
+              href={`/articles/${seriesNav.next.slug}`}
+              className='bg-blue-50 hover:bg-blue-100 rounded-xl p-3 text-sm text-left transition-colors'
+            >
+              <span className='text-blue-400 text-xs block mb-1'>الگوی بعدی →</span>
+              <span className='text-blue-800 font-semibold line-clamp-2'>{seriesNav.next.title}</span>
+            </Link>
+          ) : (
+            <div />
+          )}
+        </div>
+      )}
 
       <ArticleComments articleSlug={article.slug} />
 

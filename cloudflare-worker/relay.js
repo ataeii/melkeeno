@@ -6,6 +6,22 @@
 // Cloudflare dashboard.
 export default {
   async fetch(request, env) {
+    // Inbound direction: Telegram calling US (webhook updates), not us
+    // calling Telegram. Added 2026-09-12 after discovering the same
+    // Iran-censorship block that forces the outbound relay below also
+    // applies in reverse -- Telegram's servers got "Connection refused"
+    // trying to reach melkeeno.ir directly (confirmed via getWebhookInfo),
+    // even though ordinary browser/bot traffic to that same IP works fine.
+    // Telegram's webhook is registered to this path instead of directly to
+    // melkeeno.ir, and this just forwards the raw update through -- no
+    // x-relay-secret involved since Telegram doesn't send that header;
+    // Telegram's own optional secret_token (if set via setWebhook) is
+    // instead passed through as-is for the app route to verify.
+    const url = new URL(request.url);
+    if (url.pathname === '/telegram-webhook') {
+      return forwardIncomingTelegramWebhook(request);
+    }
+
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
     }
@@ -31,6 +47,25 @@ export default {
     return new Response('Unknown service', { status: 400 });
   },
 };
+
+async function forwardIncomingTelegramWebhook(request) {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+  const headers = { 'Content-Type': 'application/json' };
+  const tgSecret = request.headers.get('x-telegram-bot-api-secret-token');
+  if (tgSecret) headers['x-telegram-bot-api-secret-token'] = tgSecret;
+
+  const body = await request.text();
+  const upstream = await fetch('https://melkeeno.ir/api/telegram/webhook', {
+    method: 'POST',
+    headers,
+    body,
+  });
+  // Telegram only cares about the HTTP status, not the body -- but pass it
+  // through anyway, harmless and useful for manual debugging.
+  return new Response(await upstream.text(), { status: upstream.status });
+}
 
 async function forwardGemini({ prompt, model }, env) {
   if (!prompt || typeof prompt !== 'string') {

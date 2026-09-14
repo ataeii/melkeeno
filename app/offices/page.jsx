@@ -59,8 +59,17 @@ const OfficesPage = () => {
                 activeId === office.id ? 'border-2 border-amber-400' : 'border border-transparent hover:border-gray-200'
               }`}
             >
-              <div className='font-bold text-sm text-gray-800 mb-1'>{office.name}</div>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <span className='font-bold text-sm text-gray-800'>{office.name}</span>
+                {office.source === 'registered' && (
+                  <span className='text-[10px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap'>
+                    ✅ ثبت‌شده
+                  </span>
+                )}
+              </div>
               {office.address && <div className='text-xs text-gray-500 mb-1'>{office.address}</div>}
+              {office.phone && <div className='text-xs text-gray-500 mb-1'>📞 {office.phone}</div>}
+              {office.workingHours && <div className='text-xs text-gray-500 mb-1'>🕒 {office.workingHours}</div>}
               {office.geocode_confidence === 'low' && (
                 <div className='text-[11px] text-amber-600 mb-1'>📍 موقعیت تقریبی است</div>
               )}

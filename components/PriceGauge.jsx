@@ -48,6 +48,16 @@ const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
 
   return (
     <div className='mb-2 bg-gray-50 rounded-lg px-2.5 py-2'>
+      {/* Low-confidence goes first and stays visible, not a small line
+          buried under the numbers -- it changes how much to trust
+          everything below it, so it has to be seen before that. */}
+      {!isDecoy && lowConfidence && (
+        <p className='flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 rounded px-1.5 py-1 mb-1.5'>
+          <span aria-hidden>⚠️</span>
+          برآورد کم‌دقت — بر پایه {compCount} آگهی مشابه در سطح شهر (نه محله)
+        </p>
+      )}
+
       <div className='flex items-center justify-between gap-2 mb-1.5'>
         <span className='text-[11px] text-gray-500'>
           {compPpm2 ? `میانگین منطقه: ${formatToman(compPpm2)} تومان/متر` : 'برآورد قیمت منطقه'}
@@ -95,22 +105,16 @@ const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
             />
           </div>
 
-          <div className='flex items-center justify-between mt-1 text-[10px] text-gray-400'>
-            <span>{formatToman(typical * (1 - WINDOW))}</span>
-            <span>{formatToman(typical)} (میانه)</span>
-            <span>{formatToman(typical * (1 + WINDOW))}</span>
-          </div>
-
-          {min != null && max != null && (
-            <p className='text-[10px] text-gray-500 mt-1'>
-              محدوده منصفانه: {formatToman(min)} تا {formatToman(max)} {unit}
+          {/* Single "recommended range" line -- replaces the old three
+              numbers under the gauge (low/typical/high tick labels) plus a
+              second near-duplicate "محدوده منصفانه" line right after it;
+              those were the same information said twice. */}
+          {min != null && max != null ? (
+            <p className='text-[11px] text-gray-600 font-semibold mt-1.5'>
+              بازه پیشنهادی: {formatToman(min)} تا {formatToman(max)} {unit}
             </p>
-          )}
-
-          {lowConfidence && (
-            <p className='text-[10px] text-gray-400 mt-1'>
-              برآورد کم‌دقت — داده کافی در این محله نبود، بر پایه میانگین شهر ({compCount} آگهی مشابه)
-            </p>
+          ) : (
+            <p className='text-[10px] text-gray-400 mt-1.5'>میانه بازار: {formatToman(typical)} {unit}</p>
           )}
         </>
       )}

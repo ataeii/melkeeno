@@ -25,21 +25,25 @@ const Hero = () => {
   return (
     <section className='relative overflow-hidden bg-cream pt-14 pb-16 sm:pt-20 sm:pb-20'>
       <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-        {/* Picture — full width, entire original 2528x1686 image, no crop
-            (the box's aspect ratio matches the source file exactly) */}
-        <div className='relative w-full aspect-[2528/1686]'>
+        {/* Picture — capped height rather than the full native 2528x1686
+            aspect ratio, which pushed the search form (the actual primary
+            action) entirely below the fold on common viewport heights
+            (confirmed at 1330x924: the uncapped box alone ran ~887px tall
+            before the search bar even started). object-cover crops instead
+            of letterboxing since we're no longer preserving the full frame. */}
+        <div className='relative w-full h-[200px] sm:h-[300px] md:h-[360px] lg:h-[420px] rounded-2xl overflow-hidden'>
           <Image
             src={heroImage}
             alt='خانواده در حال بازدید از آپارتمان'
             fill
             priority
-            className='object-contain'
+            className='object-cover'
             sizes='100vw'
           />
         </div>
 
         {/* Search bar — full width, directly below the picture */}
-        <div className='mt-8'>
+        <div className='mt-6'>
           <PropertySearchForm />
         </div>
 

@@ -1,5 +1,7 @@
 import { sendTelegramMessage, sendTelegramPhoto, answerCallbackQuery } from '@/lib/telegram';
 import { fetchListings } from '@/lib/api';
+import connectDB from '@/config/database';
+import SavedSearch from '@/models/SavedSearch';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,9 +87,13 @@ async function sendResultsPage(chatId, districtIdx, roomsCode, page) {
 
   for (const listing of pageItems) {
     const caption = listingCaption(listing);
-    const reply_markup = listing.url
-      ? { inline_keyboard: [[{ text: 'مشاهده در دیوار ↗', url: listing.url }]] }
-      : undefined;
+    // Points at melkeeno's own listing page, not the external Divar/kilid
+    // URL -- sending users straight to the source would defeat the entire
+    // point of having a listing page with price analysis, the neighborhood
+    // guide link, and similar listings.
+    const reply_markup = {
+      inline_keyboard: [[{ text: 'مشاهده در ملکینو ↗', url: `https://melkeeno.ir/properties/listing/${listing.token}` }]],
+    };
     if (listing.image_url) {
       await sendTelegramPhoto(chatId, listing.image_url, caption, { reply_markup });
     } else {
@@ -102,6 +108,67 @@ async function sendResultsPage(chatId, districtIdx, roomsCode, page) {
       },
     });
   }
+
+  // Only offered once we actually have a results set to snapshot as
+  // "already seen" -- following a search that returned nothing yet would
+  // have no baseline to compare future matches against.
+  if (all.length > 0) {
+    await sendTelegramMessage(chatId, 'می‌خواهید از آگهی‌های جدید همین جستجو باخبر شوید؟', {
+      reply_markup: { inline_keyboard: [[{ text: '🔔 دنبال کردن این جستجو', callback_data: `ss:${districtIdx}:${roomsCode}` }]] },
+    });
+  }
+}
+
+async function saveSearch(chatId, districtIdx, roomsCode) {
+  const districtLabel = districtIdx === 'x' ? 'همه مناطق' : DISTRICTS[Number(districtIdx)];
+  const district = districtIdx === 'x' ? null : districtLabel;
+  const rooms = roomsCode === 'x' || roomsCode === '3' ? null : Number(roomsCode);
+  const minRooms = roomsCode === '3' ? 3 : null;
+
+  await connectDB();
+  const existing = await SavedSearch.findOne({ chatId: String(chatId), district, rooms, minRooms, active: true });
+  if (existing) {
+    await sendTelegramMessage(chatId, 'این جستجو را قبلاً دنبال می‌کردید ✅');
+    return;
+  }
+
+  // Snapshot everything currently matching as "already seen" so the first
+  // alert only fires for listings that appear *after* following, not a
+  // blast of every existing match.
+  const current = await fetchResults(districtIdx, roomsCode).catch(() => []);
+  await SavedSearch.create({
+    chatId: String(chatId),
+    district,
+    districtLabel,
+    rooms,
+    minRooms,
+    notifiedTokens: current.map((l) => l.token),
+  });
+  await sendTelegramMessage(
+    chatId,
+    `دنبال شد ✅ هر وقت آگهی جدیدی در «${districtLabel}» پیدا شد، همینجا خبر می‌دهیم.\nبرای دیدن یا لغو جستجوهای دنبال‌شده، /myalerts را بفرستید.`
+  );
+}
+
+async function listAlerts(chatId) {
+  await connectDB();
+  const searches = await SavedSearch.find({ chatId: String(chatId), active: true }).lean();
+  if (searches.length === 0) {
+    await sendTelegramMessage(chatId, 'هنوز هیچ جستجویی را دنبال نمی‌کنید. برای شروع، /search را بفرستید.');
+    return;
+  }
+  for (const s of searches) {
+    const roomsLabel = s.minRooms ? `${s.minRooms}+ خواب` : s.rooms ? `${s.rooms} خواب` : 'هر تعداد خواب';
+    await sendTelegramMessage(chatId, `📍 ${s.districtLabel} · ${roomsLabel}`, {
+      reply_markup: { inline_keyboard: [[{ text: '❌ لغو این دنبال‌کردن', callback_data: `sx:${s._id}` }]] },
+    });
+  }
+}
+
+async function cancelSearch(chatId, id) {
+  await connectDB();
+  await SavedSearch.updateOne({ _id: id, chatId: String(chatId) }, { $set: { active: false } });
+  await sendTelegramMessage(chatId, 'لغو شد.');
 }
 
 async function handleMessage(message) {
@@ -115,7 +182,12 @@ async function handleMessage(message) {
     return;
   }
 
-  await sendTelegramMessage(chatId, 'برای جستجوی آگهی /search را بفرستید.');
+  if (text === '/myalerts') {
+    await listAlerts(chatId);
+    return;
+  }
+
+  await sendTelegramMessage(chatId, 'برای جستجوی آگهی /search را بفرستید، یا /myalerts را برای مدیریت جستجوهای دنبال‌شده.');
 }
 
 async function handleCallback(callbackQuery) {
@@ -130,6 +202,12 @@ async function handleCallback(callbackQuery) {
   } else if (action === 'sp') {
     const [districtIdx, roomsCode, page] = rest;
     await sendResultsPage(chatId, districtIdx, roomsCode, Number(page));
+  } else if (action === 'ss') {
+    const [districtIdx, roomsCode] = rest;
+    await saveSearch(chatId, districtIdx, roomsCode);
+  } else if (action === 'sx') {
+    const [id] = rest;
+    await cancelSearch(chatId, id);
   }
 }
 

@@ -12,9 +12,26 @@ const FILTER_DEFAULTS = {
   district: '',
   rooms: '',
   min_area: '',
+  min_price: '',
   max_price: '',
+  amenities: [],
   sort: 'price_asc',
 };
+
+// Keys that count toward the "فیلترها (N)" badge -- listing_type and sort
+// are always "set" to something by design, so they don't count as refinements.
+const REFINEMENT_KEYS = ['district', 'rooms', 'min_area', 'min_price', 'max_price', 'amenities'];
+
+const AMENITY_OPTIONS = [
+  { key: 'parking', label: 'پارکینگ' },
+  { key: 'elevator', label: 'آسانسور' },
+  { key: 'warehouse', label: 'انباری' },
+  { key: 'balcony', label: 'بالکن' },
+  { key: 'furnished', label: 'مبله' },
+  { key: 'pool', label: 'استخر' },
+  { key: 'jacuzzi', label: 'جکوزی' },
+  { key: 'sauna', label: 'سونا' },
+];
 
 const PropertiesPage = () => {
   const [listings, setListings] = useState([]);
@@ -22,6 +39,8 @@ const PropertiesPage = () => {
   const [activeToken, setActiveToken] = useState(null);
   const [hoveredToken, setHoveredToken] = useState(null);
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [mobileView, setMobileView] = useState('list'); // 'list' | 'map' -- only used below the md breakpoint
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [servicesInfo, setServicesInfo] = useState(null);
@@ -48,7 +67,9 @@ const PropertiesPage = () => {
       if (filters.rooms === '4+') params.min_rooms = 4;
       else if (filters.rooms) params.rooms = filters.rooms;
       if (filters.min_area) params.min_area = filters.min_area;
+      if (filters.min_price) params.min_price = filters.min_price;
       if (filters.max_price) params.max_price = filters.max_price;
+      if (filters.amenities.length > 0) params.amenities = filters.amenities.join(',');
       if (filters.sort) params.sort = filters.sort;
 
       const data = await fetchListings(params);
@@ -93,9 +114,21 @@ const PropertiesPage = () => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  const toggleAmenity = (key) => {
+    setFilters((prev) => ({
+      ...prev,
+      amenities: prev.amenities.includes(key) ? prev.amenities.filter((a) => a !== key) : [...prev.amenities, key],
+    }));
+  };
+
   const handleReset = () => {
     setFilters(FILTER_DEFAULTS);
   };
+
+  const activeFilterCount = REFINEMENT_KEYS.reduce((count, key) => {
+    const value = filters[key];
+    return count + (Array.isArray(value) ? value.length : value ? 1 : 0);
+  }, 0);
 
   const scrollToCard = (token) => {
     const el = document.getElementById(token);
@@ -116,103 +149,178 @@ const PropertiesPage = () => {
 
   return (
     <div className='flex flex-col h-screen overflow-hidden'>
-      {/* Filter bar */}
-      <div className='sticky top-0 z-20 bg-white shadow-md px-4 py-3 flex flex-wrap items-center gap-2' dir='rtl'>
-        {/* نوع */}
-        <select
-          className={selectClass}
-          value={filters.listing_type}
-          onChange={(e) => handleFilterChange('listing_type', e.target.value)}
-        >
-          <option value='buy'>خرید</option>
-          <option value='rent'>اجاره</option>
-          <option value='short_term'>اجاره کوتاه‌مدت</option>
-        </select>
+      {/* Filter bar -- compact row always visible/sticky (type, sort, a
+          "فیلترها (N)" toggle showing how many refinements are active), the
+          rest collapsed into a panel opened on demand instead of every
+          filter always taking up a row. */}
+      <div className='sticky top-0 z-20 bg-white shadow-md' dir='rtl'>
+        <div className='px-4 py-3 flex flex-wrap items-center gap-2'>
+          {/* نوع */}
+          <select
+            className={selectClass}
+            value={filters.listing_type}
+            onChange={(e) => handleFilterChange('listing_type', e.target.value)}
+          >
+            <option value='buy'>خرید</option>
+            <option value='rent'>اجاره</option>
+            <option value='short_term'>اجاره کوتاه‌مدت</option>
+          </select>
 
-        {/* محله */}
-        <select
-          className={selectClass}
-          value={filters.district}
-          onChange={(e) => handleFilterChange('district', e.target.value)}
-        >
-          <option value=''>همه محله‌ها</option>
-          {districts.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
+          {/* مرتب‌سازی */}
+          <select
+            className={selectClass}
+            value={filters.sort}
+            onChange={(e) => handleFilterChange('sort', e.target.value)}
+          >
+            <option value='price_asc'>ارزان‌ترین</option>
+            <option value='price_desc'>گران‌ترین</option>
+            <option value='area_desc'>بزرگ‌ترین</option>
+          </select>
 
-        {/* اتاق */}
-        <select
-          className={selectClass}
-          value={filters.rooms}
-          onChange={(e) => handleFilterChange('rooms', e.target.value)}
-        >
-          <option value=''>همه اتاق‌ها</option>
-          <option value='1'>۱ خواب</option>
-          <option value='2'>۲ خواب</option>
-          <option value='3'>۳ خواب</option>
-          <option value='4+'>۴ خواب و بیشتر</option>
-        </select>
+          {/* فیلترها (باز/بسته) */}
+          <button
+            onClick={() => setFiltersOpen((prev) => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+              filtersOpen ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300'
+            }`}
+          >
+            فیلترها
+            {activeFilterCount > 0 && (
+              <span className='bg-blue-600 text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center'>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
 
-        {/* متراژ */}
-        <select
-          className={selectClass}
-          value={filters.min_area}
-          onChange={(e) => handleFilterChange('min_area', e.target.value)}
-        >
-          <option value=''>همه متراژ‌ها</option>
-          <option value='40'>۴۰+ متر</option>
-          <option value='60'>۶۰+ متر</option>
-          <option value='80'>۸۰+ متر</option>
-          <option value='100'>۱۰۰+ متر</option>
-        </select>
+          {activeFilterCount > 0 && (
+            <button
+              onClick={handleReset}
+              className='px-3 py-2 text-sm bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors'
+            >
+              پاک کردن
+            </button>
+          )}
 
-        {/* قیمت */}
-        <select
-          className={selectClass}
-          value={filters.max_price}
-          onChange={(e) => handleFilterChange('max_price', e.target.value)}
-        >
-          <option value=''>همه قیمت‌ها</option>
-          <option value='5000000000'>تا ۵ میلیارد</option>
-          <option value='10000000000'>تا ۱۰ میلیارد</option>
-          <option value='20000000000'>تا ۲۰ میلیارد</option>
-          <option value='50000000000'>تا ۵۰ میلیارد</option>
-        </select>
+          {/* Count badge */}
+          <span className='mr-auto bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1 rounded-full'>
+            {loading ? '...' : `${listings.length} آگهی`}
+          </span>
+        </div>
 
-        {/* مرتب‌سازی */}
-        <select
-          className={selectClass}
-          value={filters.sort}
-          onChange={(e) => handleFilterChange('sort', e.target.value)}
-        >
-          <option value='price_asc'>ارزان‌ترین</option>
-          <option value='price_desc'>گران‌ترین</option>
-          <option value='area_desc'>بزرگ‌ترین</option>
-        </select>
+        {/* Collapsible refinement panel */}
+        {filtersOpen && (
+          <div className='px-4 pb-3 pt-1 border-t border-gray-100 flex flex-wrap items-center gap-2'>
+            {/* محله */}
+            <select
+              className={selectClass}
+              value={filters.district}
+              onChange={(e) => handleFilterChange('district', e.target.value)}
+            >
+              <option value=''>همه محله‌ها</option>
+              {districts.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
 
-        {/* پاک کردن */}
+            {/* اتاق */}
+            <select
+              className={selectClass}
+              value={filters.rooms}
+              onChange={(e) => handleFilterChange('rooms', e.target.value)}
+            >
+              <option value=''>همه اتاق‌ها</option>
+              <option value='1'>۱ خواب</option>
+              <option value='2'>۲ خواب</option>
+              <option value='3'>۳ خواب</option>
+              <option value='4+'>۴ خواب و بیشتر</option>
+            </select>
+
+            {/* متراژ */}
+            <select
+              className={selectClass}
+              value={filters.min_area}
+              onChange={(e) => handleFilterChange('min_area', e.target.value)}
+            >
+              <option value=''>همه متراژ‌ها</option>
+              <option value='40'>۴۰+ متر</option>
+              <option value='60'>۶۰+ متر</option>
+              <option value='80'>۸۰+ متر</option>
+              <option value='100'>۱۰۰+ متر</option>
+            </select>
+
+            {/* حداقل قیمت */}
+            <input
+              type='number'
+              inputMode='numeric'
+              placeholder='حداقل قیمت (تومان)'
+              className={`${selectClass} w-40`}
+              value={filters.min_price}
+              onChange={(e) => handleFilterChange('min_price', e.target.value)}
+            />
+
+            {/* حداکثر قیمت */}
+            <select
+              className={selectClass}
+              value={filters.max_price}
+              onChange={(e) => handleFilterChange('max_price', e.target.value)}
+            >
+              <option value=''>همه قیمت‌ها</option>
+              <option value='5000000000'>تا ۵ میلیارد</option>
+              <option value='10000000000'>تا ۱۰ میلیارد</option>
+              <option value='20000000000'>تا ۲۰ میلیارد</option>
+              <option value='50000000000'>تا ۵۰ میلیارد</option>
+            </select>
+
+            {/* امکانات */}
+            <div className='w-full flex flex-wrap items-center gap-2 mt-1'>
+              <span className='text-xs text-gray-400'>امکانات:</span>
+              {AMENITY_OPTIONS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => toggleAmenity(key)}
+                  className={`px-3 py-2 rounded-full text-xs font-semibold border transition-colors ${
+                    filters.amenities.includes(key)
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile list/map toggle -- below md, the 50/50 split is too small to
+          be usable in portrait, so only one full-width panel shows at a
+          time instead. */}
+      <div className='md:hidden flex border-b border-gray-100 bg-white' dir='rtl'>
         <button
-          onClick={handleReset}
-          className='px-3 py-2 text-sm bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors'
+          onClick={() => setMobileView('list')}
+          className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+            mobileView === 'list' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'
+          }`}
         >
-          پاک کردن
+          لیست
         </button>
-
-        {/* Count badge */}
-        <span className='mr-auto bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1 rounded-full'>
-          {loading ? '...' : `${listings.length} آگهی`}
-        </span>
+        <button
+          onClick={() => setMobileView('map')}
+          className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+            mobileView === 'map' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'
+          }`}
+        >
+          نقشه
+        </button>
       </div>
 
       {/* Main split view */}
       <div className='flex flex-1 overflow-hidden'>
         {/* Left panel: listing cards */}
         <div
-          className='w-1/2 flex-shrink-0 overflow-y-auto bg-gray-50'
-          style={{ height: 'calc(100vh - 64px)' }}
+          className={`${mobileView === 'map' ? 'hidden' : 'block'} md:block w-full md:w-1/2 flex-shrink-0 h-full overflow-y-auto bg-gray-50`}
           dir='rtl'
         >
           {loading && (
@@ -254,7 +362,7 @@ const PropertiesPage = () => {
         </div>
 
         {/* Right panel: map */}
-        <div className='flex-1 relative'>
+        <div className={`${mobileView === 'list' ? 'hidden' : 'block'} md:block w-full md:flex-1 relative`}>
           <SearchMap
             listings={listings}
             activeToken={activeToken}

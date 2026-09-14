@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { FaBed, FaRulerCombined, FaBuilding, FaUserFriends } from 'react-icons/fa';
 import BookmarkToggle from './BookmarkToggle';
 import PriceGauge from './PriceGauge';
@@ -120,7 +121,7 @@ const PropertyCard = ({ property, onClick, className }) => {
         <BookmarkToggle
           type='listing'
           id={property.token}
-          className='absolute bottom-2 left-2 bg-white w-8 h-8 shadow text-base'
+          className='absolute bottom-2 left-2 bg-white w-11 h-11 shadow text-base'
         />
       </div>
 
@@ -207,23 +208,36 @@ const PropertyCard = ({ property, onClick, className }) => {
           )}
         </div>
 
-        {/* Footer */}
-        <div className='flex items-center justify-between pt-2 border-t border-gray-100'>
-          {property.agency_name && (
-            <span className='text-xs text-gray-400 truncate max-w-[120px]'>{property.agency_name}</span>
-          )}
+        {/* Footer -- "مشاهده جزئیات" (the real on-site detail page) is the
+            primary action now; the external source link is demoted to
+            small secondary text, since there used to be no on-site detail
+            page at all and this external link was the only way to see
+            more than the card summary. px-4 py-2.5 (not the original
+            px-3 py-1.5) keeps this near the ~44px mobile tap-target
+            minimum -- the old size was closer to 28px tall. */}
+        <div className='flex items-center justify-between gap-2 pt-2 border-t border-gray-100'>
+          <Link
+            href={`/properties/listing/${property.token}`}
+            onClick={(e) => e.stopPropagation()}
+            className='bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors'
+          >
+            مشاهده جزئیات
+          </Link>
           {property.url && (
             <a
               href={property.url}
               target='_blank'
               rel='noopener noreferrer'
               onClick={(e) => e.stopPropagation()}
-              className='text-xs text-blue-600 hover:text-blue-800 hover:underline mr-auto'
+              className='text-[11px] text-gray-400 hover:text-blue-600 hover:underline truncate'
             >
               {property.source === 'kilid' ? 'مشاهده در کیلید ↗' : 'مشاهده در دیوار ↗'}
             </a>
           )}
         </div>
+        {property.agency_name && (
+          <p className='text-[11px] text-gray-400 truncate mt-1.5'>{property.agency_name}</p>
+        )}
       </div>
     </div>
   );

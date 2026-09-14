@@ -1,6 +1,7 @@
 import connectDB from '@/config/database';
 import User from '@/models/User';
 import OtpCode from '@/models/OtpCode';
+import { notifyAdmin } from '@/lib/telegram';
 
 import CredentialsProvider from 'next-auth/providers/credentials';
 
@@ -58,6 +59,8 @@ export const authOptions = {
           let user = await User.findOne({ phone });
           if (!user) {
             user = await User.create({ phone, firstName, lastName });
+            const displayName = firstName ? `${firstName} ${lastName || ''}`.trim() : phone;
+            await notifyAdmin(`👤 کاربر جدید ثبت‌نام کرد\nنام: ${displayName}\nتلفن: ${phone}`);
           }
           console.log(`[otp-auth] success, returning user id=${user._id}`);
           return {
