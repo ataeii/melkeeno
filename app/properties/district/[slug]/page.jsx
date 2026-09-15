@@ -8,7 +8,7 @@ import { findNeighborhoodBySlug, NEIGHBORHOODS } from '@/lib/neighborhoods';
 export const dynamic = 'force-dynamic';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const DOMAIN = 'https://melkeeno.ir';
+const DOMAIN = 'https://khanedade.ir';
 
 async function fetchDistrictListings(dbName) {
   const qs = new URLSearchParams({ district: dbName, sort: 'newest' });

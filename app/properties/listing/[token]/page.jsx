@@ -61,7 +61,7 @@ export async function generateMetadata({ params }) {
   };
 }
 
-const DOMAIN = 'https://melkeeno.ir';
+const DOMAIN = 'https://khanedade.ir';
 
 // Structured data was missing entirely on this page -- the only schema.org
 // markup anywhere on the site was on the old, effectively-dead

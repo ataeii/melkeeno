@@ -6,7 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import '@/assets/styles/globals.css';
 import 'react-toastify/dist/ReactToastify.css';
 
-const DOMAIN = 'https://melkeeno.ir';
+const DOMAIN = 'https://khanedade.ir';
 
 export const metadata = {
   metadataBase: new URL(DOMAIN),

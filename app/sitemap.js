@@ -4,7 +4,7 @@ import { NEIGHBORHOODS } from '@/lib/neighborhoods';
 
 export const dynamic = 'force-dynamic';
 
-const DOMAIN = 'https://melkeeno.ir';
+const DOMAIN = 'https://khanedade.ir';
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Kept in sync with app/materials/page.jsx's CATEGORY_ORDER -- these pages

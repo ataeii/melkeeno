@@ -111,7 +111,7 @@ export const POST = async (request) => {
 
     await notifyAdmin(
       `🏠 آگهی جدید ثبت شد\n${newProperty.name}\n` +
-        `https://melkeeno.ir/properties/${newProperty._id}`
+        `https://khanedade.ir/properties/${newProperty._id}`
     );
 
     return Response.redirect(

@@ -64,7 +64,7 @@ export const POST = async (request) => {
   const office = await Office.create({ ...data, logoUrl, userId: sessionUser.userId, status: 'pending' });
 
   await notifyAdmin(
-    `🏢 دفتر املاک جدید برای بررسی\nنام: ${office.name}\nآدرس: ${office.address}\nتلفن: ${office.phone}\nhttps://melkeeno.ir/admin/offices`
+    `🏢 دفتر املاک جدید برای بررسی\nنام: ${office.name}\nآدرس: ${office.address}\nتلفن: ${office.phone}\nhttps://khanedade.ir/admin/offices`
   );
 
   return Response.json(office, { status: 201 });
@@ -102,7 +102,7 @@ export const PUT = async (request) => {
 
   if (wasApproved) {
     await notifyAdmin(
-      `✏️ دفتر ملکی ویرایش شد و نیاز به بررسی مجدد دارد\nنام: ${office.name}\nhttps://melkeeno.ir/admin/offices`
+      `✏️ دفتر ملکی ویرایش شد و نیاز به بررسی مجدد دارد\nنام: ${office.name}\nhttps://khanedade.ir/admin/offices`
     );
   }
 

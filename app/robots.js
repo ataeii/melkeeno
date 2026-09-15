@@ -1,4 +1,4 @@
-const DOMAIN = 'https://melkeeno.ir';
+const DOMAIN = 'https://khanedade.ir';
 
 export default function robots() {
   return {

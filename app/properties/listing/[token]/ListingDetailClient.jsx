@@ -154,7 +154,7 @@ const ListingDetailClient = () => {
   const amenities = Object.entries(AMENITY_LABELS).filter(([key]) => property[key]);
   const neighborhood = findNeighborhood(property.district);
   const freshnessLabel = formatRelativeDate(property.published_at || property.scraped_at);
-  const shareUrl = `https://melkeeno.ir/properties/listing/${property.token}`;
+  const shareUrl = `https://khanedade.ir/properties/listing/${property.token}`;
   const shareText = property.title || 'این آگهی رو ببین';
 
   return (

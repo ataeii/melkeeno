@@ -57,7 +57,7 @@ async function forwardIncomingTelegramWebhook(request) {
   if (tgSecret) headers['x-telegram-bot-api-secret-token'] = tgSecret;
 
   const body = await request.text();
-  const upstream = await fetch('https://melkeeno.ir/api/telegram/webhook', {
+  const upstream = await fetch('https://khanedade.ir/api/telegram/webhook', {
     method: 'POST',
     headers,
     body,
