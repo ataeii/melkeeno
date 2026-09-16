@@ -55,7 +55,7 @@ export async function generateMetadata({ params }) {
   if (!article) return { title: 'مقاله یافت نشد' };
 
   return {
-    title: `${article.title} | ملکینو`,
+    title: `${article.title} | خانه‌داده`,
     description: article.excerpt,
     alternates: { canonical: `/articles/${article.slug}` },
     openGraph: { title: article.title, description: article.excerpt, type: 'article' },

@@ -92,7 +92,7 @@ async function sendResultsPage(chatId, districtIdx, roomsCode, page) {
     // point of having a listing page with price analysis, the neighborhood
     // guide link, and similar listings.
     const reply_markup = {
-      inline_keyboard: [[{ text: 'مشاهده در ملکینو ↗', url: `https://khanedade.ir/properties/listing/${listing.token}` }]],
+      inline_keyboard: [[{ text: 'مشاهده در خانه‌داده ↗', url: `https://khanedade.ir/properties/listing/${listing.token}` }]],
     };
     if (listing.image_url) {
       await sendTelegramPhoto(chatId, listing.image_url, caption, { reply_markup });
@@ -176,7 +176,7 @@ async function handleMessage(message) {
   const text = (message.text || '').trim();
 
   if (text === '/start' || text === '/search') {
-    await sendTelegramMessage(chatId, 'به ربات ملکینو خوش آمدید 🏠\nبرای جستجوی آگهی، یک منطقه را انتخاب کنید:', {
+    await sendTelegramMessage(chatId, 'به ربات خانه‌داده خوش آمدید 🏠\nبرای جستجوی آگهی، یک منطقه را انتخاب کنید:', {
       reply_markup: districtKeyboard(),
     });
     return;

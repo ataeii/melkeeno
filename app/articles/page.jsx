@@ -9,7 +9,7 @@ import Article from '@/models/Article';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'مقالات ملکی | ملکینو',
+  title: 'مقالات ملکی | خانه‌داده',
   description: 'راهنمای خرید، اجاره و مسائل حقوقی ملک در ایران — نکات کاربردی برای تصمیم‌های ملکی بهتر.',
 };
 

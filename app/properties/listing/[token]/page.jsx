@@ -15,7 +15,7 @@ function formatPrice(price) {
 export async function generateMetadata({ params }) {
   const property = await fetchListing(params.token).catch(() => null);
   if (!property) {
-    return { title: 'آگهی یافت نشد | ملکینو' };
+    return { title: 'آگهی یافت نشد | خانه‌داده' };
   }
 
   const typeLabel =
@@ -31,14 +31,14 @@ export async function generateMetadata({ params }) {
 
   const titleParts = [property.title || `آگهی ${typeLabel}`];
   if (property.district) titleParts.push(property.district);
-  const title = `${titleParts.join(' در ')} | ملکینو`;
+  const title = `${titleParts.join(' در ')} | خانه‌داده`;
 
   const descriptionParts = [`آگهی ${typeLabel}`];
   if (property.area_m2) descriptionParts.push(`${property.area_m2} متر مربع`);
   if (property.rooms) descriptionParts.push(`${property.rooms} خواب`);
   if (property.district) descriptionParts.push(`در ${property.district}`);
   if (priceLabel) descriptionParts.push(priceLabel);
-  const description = descriptionParts.join('، ') + ' — مشاهده جزئیات، امکانات و تحلیل قیمت در ملکینو.';
+  const description = descriptionParts.join('، ') + ' — مشاهده جزئیات، امکانات و تحلیل قیمت در خانه‌داده.';
 
   let image;
   try {

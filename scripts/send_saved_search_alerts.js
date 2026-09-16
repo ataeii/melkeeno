@@ -107,7 +107,7 @@ async function processSearch(search) {
       // melkeeno's own listing page, not the external Divar/kilid URL --
       // same reasoning as the /search bot flow in the webhook route.
       const reply_markup = {
-        inline_keyboard: [[{ text: 'مشاهده در ملکینو ↗', url: `https://khanedade.ir/properties/listing/${listing.token}` }]],
+        inline_keyboard: [[{ text: 'مشاهده در خانه‌داده ↗', url: `https://khanedade.ir/properties/listing/${listing.token}` }]],
       };
       if (listing.image_url) {
         await sendPhoto(search.chatId, listing.image_url, caption, { reply_markup });

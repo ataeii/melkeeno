@@ -54,7 +54,7 @@ const Navbar = () => {
           {/* Logo */}
           <Link href='/' className='flex items-center gap-2 flex-shrink-0'>
             <Image src={logoIcon} alt='' width={36} height={36} className='rounded-lg' priority />
-            <span className='text-navy-800 text-2xl font-extrabold tracking-tight'>ملکینو</span>
+            <span className='text-navy-800 text-2xl font-extrabold tracking-tight'>خانه‌داده</span>
           </Link>
 
           {/* Nav links -- PRIMARY_LINKS stay inline in a scrollable row

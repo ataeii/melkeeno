@@ -10,13 +10,13 @@ const Footer = () => {
       <div className='container mx-auto flex flex-col md:flex-row items-center justify-between px-4 gap-2'>
         <span className='flex items-center gap-2 text-navy-800 text-xl font-extrabold tracking-tight'>
           <Image src={logoIcon} alt='' width={28} height={28} className='rounded-md' />
-          ملکینو
+          خانه‌داده
         </span>
         <Link href='/contact' className='text-sm text-gray-500 hover:text-blue-600 font-semibold transition-colors'>
           تماس با ما
         </Link>
         <p className='text-sm text-gray-400'>
-          &copy; {currentYear} ملکینو. تمامی حقوق محفوظ است.
+          &copy; {currentYear} خانه‌داده. تمامی حقوق محفوظ است.
         </p>
       </div>
     </footer>

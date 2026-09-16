@@ -10,11 +10,11 @@ const DOMAIN = 'https://khanedade.ir';
 
 export const metadata = {
   metadataBase: new URL(DOMAIN),
-  title: 'ملکینو | جستجوی هوشمند ملک در تهران',
+  title: 'خانه‌داده | جستجوی هوشمند ملک در تهران',
   description: 'جست‌وجوی ملک، آپارتمان و زمین در تهران با تحلیل قیمت منصفانه و امکانات محله.',
   keywords: 'ملک، آپارتمان، اجاره، خرید، زمین، مسکن',
   openGraph: {
-    siteName: 'ملکینو',
+    siteName: 'خانه‌داده',
     type: 'website',
     locale: 'fa_IR',
     images: ['/images/screen.jpg'],
@@ -34,7 +34,7 @@ export const metadata = {
 const websiteJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  name: 'ملکینو',
+  name: 'خانه‌داده',
   url: DOMAIN,
 };
 

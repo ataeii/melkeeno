@@ -33,19 +33,19 @@ function formatPrice(price) {
 
 export async function generateMetadata({ params }) {
   const neighborhood = findNeighborhoodBySlug(params.slug);
-  if (!neighborhood) return { title: 'محله یافت نشد | ملکینو' };
+  if (!neighborhood) return { title: 'محله یافت نشد | خانه‌داده' };
 
   const listings = await fetchDistrictListings(neighborhood.dbName).catch(() => []);
   const count = listings.length;
 
-  const title = `خرید و اجاره ملک در ${neighborhood.label} | ${count > 0 ? `${count} آگهی` : ''} ملکینو`.replace(
+  const title = `خرید و اجاره ملک در ${neighborhood.label} | ${count > 0 ? `${count} آگهی` : ''} خانه‌داده`.replace(
     /\s+\|\s+/g,
     ' | '
   );
   const description =
     count > 0
-      ? `${count} آگهی خرید، فروش و اجاره‌ی آپارتمان در ${neighborhood.label}، به‌همراه راهنمای کامل محله، قیمت‌ها و امکانات — در ملکینو.`
-      : `راهنمای کامل محله‌ی ${neighborhood.label}: امکانات، دسترسی و بازار مسکن — به‌همراه آگهی‌های خرید و اجاره‌ی ملک در ملکینو.`;
+      ? `${count} آگهی خرید، فروش و اجاره‌ی آپارتمان در ${neighborhood.label}، به‌همراه راهنمای کامل محله، قیمت‌ها و امکانات — در خانه‌داده.`
+      : `راهنمای کامل محله‌ی ${neighborhood.label}: امکانات، دسترسی و بازار مسکن — به‌همراه آگهی‌های خرید و اجاره‌ی ملک در خانه‌داده.`;
 
   return {
     title,
@@ -80,7 +80,7 @@ const DistrictPage = async ({ params }) => {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'ملکینو', item: DOMAIN },
+      { '@type': 'ListItem', position: 1, name: 'خانه‌داده', item: DOMAIN },
       { '@type': 'ListItem', position: 2, name: 'املاک', item: `${DOMAIN}/properties` },
       { '@type': 'ListItem', position: 3, name: neighborhood.label, item: `${DOMAIN}/properties/district/${neighborhood.slug}` },
     ],
