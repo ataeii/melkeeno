@@ -25,6 +25,10 @@ const Hero = () => {
   return (
     <section className='relative overflow-hidden bg-cream pt-14 pb-16 sm:pt-20 sm:pb-20'>
       <div className='relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+        <h1 className='text-center text-2xl sm:text-3xl font-extrabold text-navy-800 mb-6'>
+          خانه‌داده، اطلاعات املاک برای هر خانواده
+        </h1>
+
         {/* Picture — capped height rather than the full native 2528x1686
             aspect ratio, which pushed the search form (the actual primary
             action) entirely below the fold on common viewport heights
