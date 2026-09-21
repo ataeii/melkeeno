@@ -57,12 +57,17 @@ const Hero = () => {
             className='object-cover'
             sizes='100vw'
           />
-          <div className='hidden sm:flex absolute inset-y-0 left-0 w-1/2 lg:w-[42%] items-center px-6 lg:px-8'>
-            <div>
-              <h1 className='text-2xl lg:text-3xl font-extrabold text-navy-800 leading-snug'>
+          <div className='hidden sm:flex absolute inset-y-0 left-0 w-1/4 items-center p-4 lg:p-6'>
+            {/* Solid cream card instead of text floating directly on the photo
+                -- the wall behind it has warm, uneven golden-hour lighting, so
+                plain navy text sat poorly against it and read as off-brand.
+                A cream/white card grounds the text on the same surface color
+                used everywhere else on the site. */}
+            <div className='bg-cream/95 backdrop-blur-sm rounded-xl shadow-lg p-4 lg:p-5'>
+              <h1 className='text-lg lg:text-2xl font-extrabold text-navy-800 leading-snug'>
                 خانه‌داده، اطلاعات املاک برای هر خانواده
               </h1>
-              <p className='mt-3 text-base text-gray-700 font-medium'>
+              <p className='mt-2 text-sm lg:text-base text-gray-700 font-medium'>
                 ساده‌تر و سریع‌تر از همیشه، خانه، آپارتمان یا ملک دلخواهت را پیدا کن.
               </p>
             </div>
