@@ -34,8 +34,10 @@ const VERDICT_LABEL = {
  * @param {number} ownPrice - the listing's own total price (or rent)
  * @param {object} estimate - { typical, min, max, verdict, verdictPct, confidence, compCount, compPpm2 }
  * @param {'sale'|'rent'} kind
+ * @param {boolean} showDisclaimer - full listing-detail page only, not the
+ *   card grid (would repeat once per card there, too noisy)
  */
-const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
+const PriceGauge = ({ ownPrice, estimate, kind = 'sale', showDisclaimer = false }) => {
   if (!estimate || !estimate.typical || !ownPrice) return null;
   const { typical, min, max, verdict, verdictPct, confidence, compCount, compPpm2, flag } = estimate;
   const isDecoy = flag === 'decoy';
@@ -117,6 +119,13 @@ const PriceGauge = ({ ownPrice, estimate, kind = 'sale' }) => {
             <p className='text-[10px] text-gray-400 mt-1.5'>میانه بازار: {formatToman(typical)} {unit}</p>
           )}
         </>
+      )}
+
+      {showDisclaimer && (
+        <p className='text-[10px] text-gray-400 mt-2 pt-1.5 border-t border-gray-200'>
+          تحلیل قیمتی ما بر اساس پارامترهای ریاضی است و ممکن است اشتباه باشد. به خریداران توصیه می‌شود
+          تحقیقات خود را در مورد قیمت واحدها انجام دهند.
+        </p>
       )}
     </div>
   );

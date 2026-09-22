@@ -241,7 +241,7 @@ const ListingDetailClient = () => {
 
             {priceEstimate && (
               <div className='mb-3'>
-                <PriceGauge {...priceEstimate} />
+                <PriceGauge {...priceEstimate} showDisclaimer />
               </div>
             )}
 
