@@ -16,9 +16,9 @@ function formatPrice(price) {
 // which property, district, or price it actually was.
 export async function generateMetadata({ params }) {
   // undefined = backend error (keep the page, client retries); null = the
-  // backend said 404. notFound() has to fire here, not in the page body:
-  // app/loading.jsx makes the page stream, so by the time the body runs a
-  // 200 has already been sent and the "404" is only a noindex soft 404.
+  // backend said 404. Note: app/loading.jsx makes every page stream, so on
+  // Next 14.1 this still answers HTTP 200 -- but with the not-found page and
+  // a noindex tag, which Google treats as excluded (verified 2026-09-25).
   const property = await fetchListing(params.token).catch(() => undefined);
   if (property === null) notFound();
   if (!property) {
@@ -126,8 +126,7 @@ const ListingDetailPage = async ({ params }) => {
     // Backend hiccup: fall back to the client-side fetch rather than 404.
     property = undefined;
   }
-  // A genuinely missing/expired listing now returns a real 404 instead of
-  // a 200 "not found" page (a soft 404 to Google).
+  // Missing/expired listing -> not-found page (noindex); see generateMetadata.
   if (property === null) notFound();
 
   let similar = [];
