@@ -1,4 +1,5 @@
 import PlacesCategoryClient from './PlacesCategoryClient';
+import { pageMeta } from '@/lib/seo';
 
 // Was a client component with zero generateMetadata -- every one of these
 // 9 category pages served the exact same generic site-wide title/description
@@ -23,12 +24,7 @@ export async function generateMetadata({ params }) {
   const title = `${label} تهران روی نقشه | خانه‌داده`;
   const description = `فهرست و نقشه‌ی ${label} تهران — برای انتخاب بهتر محل زندگی نزدیک به ${label}، در خانه‌داده.`;
 
-  return {
-    title,
-    description,
-    alternates: { canonical: `/places/${params.category}` },
-    openGraph: { title, description, type: 'website' },
-  };
+  return pageMeta({ title, description, path: `/places/${params.category}` });
 }
 
 const PlaceCategoryPage = () => <PlacesCategoryClient />;

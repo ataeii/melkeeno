@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import connectDB from '@/config/database';
 import Article from '@/models/Article';
+import { pageMeta } from '@/lib/seo';
 
 // Without this, Next statically renders the page at build time and caches
 // whatever the DB returned then -- fine for code, wrong for content that's
@@ -8,10 +9,11 @@ import Article from '@/models/Article';
 // app/sitemap.js already sets this.
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
+export const metadata = pageMeta({
   title: 'مقالات ملکی | خانه‌داده',
   description: 'راهنمای خرید، اجاره و مسائل حقوقی ملک در ایران — نکات کاربردی برای تصمیم‌های ملکی بهتر.',
-};
+  path: '/articles',
+});
 
 const formatDate = (iso) =>
   new Date(iso).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' });

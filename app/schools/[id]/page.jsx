@@ -1,5 +1,6 @@
 import { fetchAllSchools } from '@/lib/api';
 import SchoolDetailClient from './SchoolDetailClient';
+import { pageMeta } from '@/lib/seo';
 
 // Was a client component with zero generateMetadata -- all 147 school
 // pages served the exact same generic site-wide title/description to
@@ -25,12 +26,7 @@ export async function generateMetadata({ params }) {
   if (school.address) descriptionParts.push(school.address);
   const description = descriptionParts.join('، ') + ' — نظرات و امتیاز والدین، در خانه‌داده.';
 
-  return {
-    title,
-    description,
-    alternates: { canonical: `/schools/${params.id}` },
-    openGraph: { title, description, type: 'website' },
-  };
+  return pageMeta({ title, description, path: `/schools/${params.id}` });
 }
 
 const SchoolDetailPage = () => <SchoolDetailClient />;

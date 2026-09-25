@@ -15,7 +15,7 @@ module.exports = {
       },
       colors: {
         // Warm gold/amber brand scale, sampled directly from the official
-        // ملکینو logo mark — overrides Tailwind's default `blue`, so every
+        // خانه‌داده logo mark — overrides Tailwind's default `blue`, so every
         // existing bg-blue-*/text-blue-* class rebrands in place site-wide.
         blue: {
           50: '#FAF6F0',

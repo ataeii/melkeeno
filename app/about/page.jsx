@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { pageMeta } from '@/lib/seo';
 
-export const metadata = {
+export const metadata = pageMeta({
   title: 'درباره ما | خانه‌داده',
   description: 'خانه‌داده چیست و چه خدماتی برای جستجوی ملک، اجاره و خرید خانه در تهران ارائه می‌دهد.',
-};
+  path: '/about',
+});
 
 const AboutPage = () => {
   return (

@@ -10,7 +10,7 @@ import { fetchListings } from '@/lib/api';
 const FeaturedProperties = async () => {
   let properties = [];
   try {
-    const listings = await fetchListings({ listing_type: 'buy,rent' });
+    const listings = await fetchListings({ listing_type: 'buy,rent' }, { next: { revalidate: 300 } });
     properties = (Array.isArray(listings) ? listings : [])
       .filter((p) => p.price_verdict === 'below_market')
       .sort(() => Math.random() - Math.random())

@@ -54,6 +54,22 @@ export default async function sitemap() {
     // API is briefly unreachable -- fall back to the static/article URLs.
   }
 
+  // The 147 /schools/[id] pages have had their own metadata since 09-19
+  // but were never listed here.
+  let schoolUrls = [];
+  try {
+    const res = await fetch(`${API}/api/schools?limit=500`, { cache: 'no-store' });
+    if (res.ok) {
+      const schools = await res.json();
+      schoolUrls = (Array.isArray(schools) ? schools : []).map((s) => ({
+        url: `${DOMAIN}/schools/${s.id}`,
+        lastModified: new Date(),
+      }));
+    }
+  } catch {
+    // Same fallback reasoning as the listings fetch above.
+  }
+
   const articleUrls = articles.map((article) => ({
     url: `${DOMAIN}/articles/${article.slug}`,
     lastModified: article.updatedAt,
@@ -86,6 +102,7 @@ export default async function sitemap() {
     ...placeCategoryUrls,
     ...materialCategoryUrls,
     ...districtUrls,
+    ...schoolUrls,
     ...articleUrls,
     ...listingUrls,
   ];

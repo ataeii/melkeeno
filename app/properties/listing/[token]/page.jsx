@@ -1,5 +1,7 @@
-import { fetchListing } from '@/lib/api';
+import { notFound } from 'next/navigation';
+import { fetchListing, fetchListings } from '@/lib/api';
 import ListingDetailClient from './ListingDetailClient';
+import { pageMeta } from '@/lib/seo';
 
 function formatPrice(price) {
   if (!price || price === 0) return null;
@@ -13,9 +15,14 @@ function formatPrice(price) {
 // exact same generic site-wide title/description to Google regardless of
 // which property, district, or price it actually was.
 export async function generateMetadata({ params }) {
-  const property = await fetchListing(params.token).catch(() => null);
+  // undefined = backend error (keep the page, client retries); null = the
+  // backend said 404. notFound() has to fire here, not in the page body:
+  // app/loading.jsx makes the page stream, so by the time the body runs a
+  // 200 has already been sent and the "404" is only a noindex soft 404.
+  const property = await fetchListing(params.token).catch(() => undefined);
+  if (property === null) notFound();
   if (!property) {
-    return { title: 'آگهی یافت نشد | خانه‌داده' };
+    return { title: 'آگهی | خانه‌داده' };
   }
 
   const typeLabel =
@@ -29,14 +36,19 @@ export async function generateMetadata({ params }) {
       ? formatPrice(property.price) + ' تومان'
       : null;
 
+  // A few dozen kilid listings carry a raw English slug ("oghaf",
+  // "shahrak-ati-shahr") as their district -- leave those out of the
+  // Persian title/snippet rather than print the slug.
+  const district = property.district && !/^[A-Za-z0-9 _-]+$/.test(property.district) ? property.district : null;
+
   const titleParts = [property.title || `آگهی ${typeLabel}`];
-  if (property.district) titleParts.push(property.district);
+  if (district) titleParts.push(district);
   const title = `${titleParts.join(' در ')} | خانه‌داده`;
 
   const descriptionParts = [`آگهی ${typeLabel}`];
   if (property.area_m2) descriptionParts.push(`${property.area_m2} متر مربع`);
   if (property.rooms) descriptionParts.push(`${property.rooms} خواب`);
-  if (property.district) descriptionParts.push(`در ${property.district}`);
+  if (district) descriptionParts.push(`در ${district}`);
   if (priceLabel) descriptionParts.push(priceLabel);
   const description = descriptionParts.join('، ') + ' — مشاهده جزئیات، امکانات و تحلیل قیمت در خانه‌داده.';
 
@@ -48,17 +60,12 @@ export async function generateMetadata({ params }) {
     image = property.image_url;
   }
 
-  return {
+  return pageMeta({
     title,
     description,
-    alternates: { canonical: `/properties/listing/${params.token}` },
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      images: image ? [image] : undefined,
-    },
-  };
+    path: `/properties/listing/${params.token}`,
+    images: image ? [image] : undefined,
+  });
 }
 
 const DOMAIN = 'https://khanedade.ir';
@@ -70,9 +77,7 @@ const DOMAIN = 'https://khanedade.ir';
 // ever show up in Google's rich real-estate results. Rendered server-side
 // (not from the client component) so it's present in the initial HTML
 // crawlers see, not injected after a client fetch.
-async function buildJsonLd(token) {
-  const property = await fetchListing(token).catch(() => null);
-  if (!property) return null;
+function buildJsonLd(token, property) {
 
   let images = [];
   try {
@@ -109,14 +114,36 @@ async function buildJsonLd(token) {
   };
 }
 
+// The listing (and its similar-listings strip) used to be fetched only in
+// the browser, so the HTML crawlers received was just "در حال بارگذاری..."
+// -- no text, no internal links. Fetch on the server and hand the data to
+// the client component so the full page is in the initial HTML.
 const ListingDetailPage = async ({ params }) => {
-  const jsonLd = await buildJsonLd(params.token);
+  let property;
+  try {
+    property = await fetchListing(params.token);
+  } catch {
+    // Backend hiccup: fall back to the client-side fetch rather than 404.
+    property = undefined;
+  }
+  // A genuinely missing/expired listing now returns a real 404 instead of
+  // a 200 "not found" page (a soft 404 to Google).
+  if (property === null) notFound();
+
+  let similar = [];
+  if (property?.district && property?.listing_type) {
+    similar = await fetchListings({ district: property.district, listing_type: property.listing_type })
+      .then((rows) => rows.filter((r) => r.token !== params.token).slice(0, 4))
+      .catch(() => []);
+  }
+
+  const jsonLd = property ? buildJsonLd(params.token, property) : null;
   return (
     <>
       {jsonLd && (
         <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
-      <ListingDetailClient />
+      <ListingDetailClient initialProperty={property} initialSimilar={similar} />
     </>
   );
 };

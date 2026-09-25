@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { pageMeta } from '@/lib/seo';
 import {
   FaHospital,
   FaShoppingCart,
@@ -11,10 +12,11 @@ import {
   FaDumbbell,
 } from 'react-icons/fa';
 
-export const metadata = {
+export const metadata = pageMeta({
   title: 'نقاط مورد علاقه | خانه‌داده',
   description: 'فهرست بیمارستان‌ها، فروشگاه‌های زنجیره‌ای، پارک‌ها، کافه‌ها، داروخانه‌ها، بانک‌ها، ایستگاه‌های مترو و باشگاه‌های ورزشی تهران روی نقشه.',
-};
+  path: '/places',
+});
 
 const CATEGORIES = [
   { key: 'hospital', label: 'بیمارستان‌ها', icon: <FaHospital className='text-red-500' /> },

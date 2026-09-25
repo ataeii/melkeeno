@@ -152,7 +152,7 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
               <a
                 href={popupInfo.url}
                 target='_blank'
-                rel='noopener noreferrer'
+                rel='nofollow noopener noreferrer'
                 style={{ fontSize: '12px', color: '#2563eb', textDecoration: 'underline' }}
               >
                 مشاهده در دیوار ↗

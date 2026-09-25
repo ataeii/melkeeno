@@ -64,9 +64,12 @@ const Hero = () => {
                 A cream/white card grounds the text on the same surface color
                 used everywhere else on the site. */}
             <div className='bg-cream/95 backdrop-blur-sm rounded-xl shadow-lg p-4 lg:p-5'>
-              <h1 className='text-lg lg:text-2xl font-extrabold text-navy-800 leading-snug'>
+              {/* Only one literal <h1> per page (the mobile copy above);
+                  this visible-on-desktop duplicate keeps heading semantics
+                  for screen readers via role/aria-level instead. */}
+              <div role='heading' aria-level={1} className='text-lg lg:text-2xl font-extrabold text-navy-800 leading-snug'>
                 خانه‌داده، اطلاعات املاک برای هر خانواده
-              </h1>
+              </div>
               <p className='mt-2 text-sm lg:text-base text-gray-700 font-medium'>
                 ساده‌تر و سریع‌تر از همیشه، خانه، آپارتمان یا ملک دلخواهت را پیدا کن.
               </p>

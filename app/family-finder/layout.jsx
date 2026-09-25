@@ -1,13 +1,16 @@
+import { pageMeta } from '@/lib/seo';
+
 // Was missing entirely -- this page (a client component, so it can't
 // export metadata itself) inherited the root layout's generic homepage
 // title/description. Confirmed in Search Console: ranking at a strong
 // position ~6 for its query but 0% CTR, exactly what a mismatched
 // title/snippet produces regardless of position.
-export const metadata = {
+export const metadata = pageMeta({
   title: 'خانه‌یاب خانواده — پیدا کردن خانه نزدیک محل کار و مدرسه | خانه‌داده',
   description:
     'به‌جای جست‌وجوی محله به محله، محل کار و مدرسه‌ی فرزندتان را وارد کنید تا خانه‌داده خانه‌هایی را نشان دهد که واقعاً کمترین زمان رفت‌وآمد روزانه را برای کل خانواده دارند.',
-};
+  path: '/family-finder',
+});
 
 const FamilyFinderLayout = ({ children }) => children;
 

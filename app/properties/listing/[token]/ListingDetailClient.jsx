@@ -44,16 +44,18 @@ const AMENITY_LABELS = {
 // didn't exist at all, so PropertyCard's only "see more" option was the
 // external Divar/Kilid link. That external link stays here too (small,
 // secondary, near the bottom) for anyone who wants to verify the original
-// posting, but everything a visitor actually needs is now on melkeeno.ir.
-const ListingDetailClient = () => {
+// posting, but everything a visitor actually needs is now on khanedade.ir.
+const ListingDetailClient = ({ initialProperty, initialSimilar = [] }) => {
   const { token } = useParams();
-  const [property, setProperty] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [property, setProperty] = useState(initialProperty || null);
+  const [loading, setLoading] = useState(!initialProperty);
   const [error, setError] = useState(null);
   const [activeImage, setActiveImage] = useState(0);
-  const [similar, setSimilar] = useState([]);
+  const [similar, setSimilar] = useState(initialSimilar);
 
+  // Only fetch in the browser when the server couldn't (backend error).
   useEffect(() => {
+    if (initialProperty) return;
     setLoading(true);
     fetchListing(token)
       .then((data) => {
@@ -65,14 +67,14 @@ const ListingDetailClient = () => {
       })
       .catch(() => setError('خطا در بارگذاری آگهی'))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, initialProperty]);
 
   useEffect(() => {
-    if (!property?.district || !property?.listing_type) return;
+    if (initialProperty || !property?.district || !property?.listing_type) return;
     fetchListings({ district: property.district, listing_type: property.listing_type })
       .then((rows) => setSimilar(rows.filter((r) => r.token !== token).slice(0, 4)))
       .catch(() => setSimilar([]));
-  }, [property?.district, property?.listing_type, token]);
+  }, [property?.district, property?.listing_type, token, initialProperty]);
 
   if (loading) {
     return (
@@ -284,7 +286,7 @@ const ListingDetailClient = () => {
               <a
                 href={property.url}
                 target='_blank'
-                rel='noopener noreferrer'
+                rel='nofollow noopener noreferrer'
                 className='block text-center text-xs text-gray-400 hover:text-blue-600 hover:underline mt-2'
               >
                 مشاهده آگهی اصلی در {property.source === 'kilid' ? 'کیلید' : 'دیوار'} ↗

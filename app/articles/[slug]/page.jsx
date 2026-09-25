@@ -4,6 +4,7 @@ import connectDB from '@/config/database';
 import Article from '@/models/Article';
 import ArticleComments from '@/components/ArticleComments';
 import { FaArrowRight } from 'react-icons/fa';
+import { pageMeta } from '@/lib/seo';
 
 // See app/articles/page.jsx -- without this, a status/content edit in the
 // DB wouldn't show up until the next code deploy.
@@ -55,10 +56,12 @@ export async function generateMetadata({ params }) {
   if (!article) return { title: 'مقاله یافت نشد' };
 
   return {
-    title: `${article.title} | خانه‌داده`,
-    description: article.excerpt,
-    alternates: { canonical: `/articles/${article.slug}` },
-    openGraph: { title: article.title, description: article.excerpt, type: 'article' },
+    ...pageMeta({
+      title: `${article.title} | خانه‌داده`,
+      description: article.excerpt,
+      path: `/articles/${article.slug}`,
+      type: 'article',
+    }),
     // Drafts stay reachable by direct link for review, but must never be
     // indexed or show up in the public /articles list before someone signs
     // off on them.

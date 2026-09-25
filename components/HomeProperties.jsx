@@ -10,7 +10,7 @@ import { fetchListings } from '@/lib/api';
 const HomeProperties = async () => {
   let recentProperties = [];
   try {
-    const listings = await fetchListings({ listing_type: 'buy,rent' });
+    const listings = await fetchListings({ listing_type: 'buy,rent' }, { next: { revalidate: 300 } });
     recentProperties = (Array.isArray(listings) ? listings : [])
       .sort(() => Math.random() - Math.random())
       .slice(0, 3);

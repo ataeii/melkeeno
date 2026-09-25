@@ -227,7 +227,7 @@ const PropertyCard = ({ property, onClick, className }) => {
             <a
               href={property.url}
               target='_blank'
-              rel='noopener noreferrer'
+              rel='nofollow noopener noreferrer'
               onClick={(e) => e.stopPropagation()}
               className='text-[11px] text-gray-400 hover:text-blue-600 hover:underline truncate'
             >

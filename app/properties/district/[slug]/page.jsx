@@ -4,6 +4,7 @@ import connectDB from '@/config/database';
 import Article from '@/models/Article';
 import PropertyCard from '@/components/PropertyCard';
 import { findNeighborhoodBySlug, NEIGHBORHOODS } from '@/lib/neighborhoods';
+import { pageMeta } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,12 +48,7 @@ export async function generateMetadata({ params }) {
       ? `${count} آگهی خرید، فروش و اجاره‌ی آپارتمان در ${neighborhood.label}، به‌همراه راهنمای کامل محله، قیمت‌ها و امکانات — در خانه‌داده.`
       : `راهنمای کامل محله‌ی ${neighborhood.label}: امکانات، دسترسی و بازار مسکن — به‌همراه آگهی‌های خرید و اجاره‌ی ملک در خانه‌داده.`;
 
-  return {
-    title,
-    description,
-    alternates: { canonical: `/properties/district/${neighborhood.slug}` },
-    openGraph: { title, description, type: 'website' },
-  };
+  return pageMeta({ title, description, path: `/properties/district/${neighborhood.slug}` });
 }
 
 const DistrictPage = async ({ params }) => {
