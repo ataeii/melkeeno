@@ -40,6 +40,23 @@ const VERDICT_LABEL = {
 const PriceGauge = ({ ownPrice, estimate, kind = 'sale', showDisclaimer = false }) => {
   if (!estimate || !estimate.typical || !ownPrice) return null;
   const { typical, min, max, verdict, verdictPct, confidence, compCount, compPpm2, flag } = estimate;
+  // price_analysis.py flags (2026-09-27): 'decoy' = garbage/bait price,
+  // 'outlier' = real listing far from its local estimate (urgent sale,
+  // premium unit, satellite town), 'presale' = off-plan -- none get a verdict.
+  if (flag === 'presale') {
+    return (
+      <p className='mb-2 text-[11px] text-gray-500 bg-gray-50 rounded-lg px-2.5 py-2'>
+        پیش‌فروش — قیمت این آگهی با آپارتمان‌های آماده مقایسه نمی‌شود.
+      </p>
+    );
+  }
+  if (flag === 'outlier') {
+    return (
+      <p className='mb-2 text-[11px] text-gray-500 bg-gray-50 rounded-lg px-2.5 py-2'>
+        قیمت این آگهی با آگهی‌های مشابه منطقه فاصله زیادی دارد؛ برآورد قیمت برای آن نمایش داده نمی‌شود.
+      </p>
+    );
+  }
   const isDecoy = flag === 'decoy';
   const ratio = ownPrice / typical;
   const lowConfidence = confidence === 'low';
