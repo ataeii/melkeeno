@@ -26,13 +26,16 @@ const Stars = ({ value, onChange, size = 'text-lg' }) => (
   </div>
 );
 
-const SchoolDetailClient = () => {
+const SchoolDetailClient = ({ initialSchool }) => {
   const params = useParams();
   const schoolId = Number(params.id);
   const { data: session } = useSession();
 
-  const [school, setSchool] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // initialSchool comes from the server so the school's details are in the
+  // first HTML -- before, all 147 school pages served the identical
+  // loading shell and Google flagged them as duplicates of each other.
+  const [school, setSchool] = useState(initialSchool || null);
+  const [loading, setLoading] = useState(!initialSchool);
   const [reviews, setReviews] = useState([]);
   const [average, setAverage] = useState(null);
   const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -42,6 +45,7 @@ const SchoolDetailClient = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (initialSchool) return;
     // No single-school backend endpoint exists -- 147 schools total, so
     // fetching the full list (already cached/used elsewhere via the same
     // helper) and finding by id client-side is simpler than adding one.
@@ -52,7 +56,7 @@ const SchoolDetailClient = () => {
       })
       .catch(() => setSchool(null))
       .finally(() => setLoading(false));
-  }, [schoolId]);
+  }, [schoolId, initialSchool]);
 
   const loadReviews = () => {
     setReviewsLoading(true);

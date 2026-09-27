@@ -29,6 +29,10 @@ export async function generateMetadata({ params }) {
   return pageMeta({ title, description, path: `/schools/${params.id}` });
 }
 
-const SchoolDetailPage = () => <SchoolDetailClient />;
+const SchoolDetailPage = async ({ params }) => {
+  const schools = await fetchAllSchools().catch(() => []);
+  const school = (Array.isArray(schools) ? schools : []).find((s) => s.id === Number(params.id));
+  return <SchoolDetailClient initialSchool={school} />;
+};
 
 export default SchoolDetailPage;

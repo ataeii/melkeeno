@@ -31,14 +31,16 @@ const CATEGORIES = {
   gym: { label: 'باشگاه‌های ورزشی', icon: <FaDumbbell className='text-orange-600' /> },
 };
 
-const PlacesCategoryClient = () => {
+const PlacesCategoryClient = ({ initialPlaces }) => {
   const { category } = useParams();
   const searchParams = useSearchParams();
   const highlightId = searchParams.get('highlight');
   const meta = CATEGORIES[category];
 
-  const [places, setPlaces] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // initialPlaces comes from the server so the list is in the first HTML
+  // (was an empty "loading" shell to crawlers).
+  const [places, setPlaces] = useState(initialPlaces || []);
+  const [loading, setLoading] = useState(!initialPlaces);
   const [error, setError] = useState(null);
   const [activeId, setActiveId] = useState(null);
   const [query, setQuery] = useState('');
@@ -49,19 +51,25 @@ const PlacesCategoryClient = () => {
 
   useEffect(() => {
     if (!meta) return;
+    const applyHighlight = (data) => {
+      if (!highlightId) return;
+      const match = data.find((p) => String(p.id) === highlightId);
+      if (match) {
+        setActiveId(match.id);
+        setTimeout(() => {
+          document.getElementById(`place-${match.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    };
+    if (initialPlaces) {
+      applyHighlight(initialPlaces);
+      return;
+    }
     setLoading(true);
     fetchPoiList(category)
       .then((data) => {
         setPlaces(data);
-        if (highlightId) {
-          const match = data.find((p) => String(p.id) === highlightId);
-          if (match) {
-            setActiveId(match.id);
-            setTimeout(() => {
-              document.getElementById(`place-${match.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-          }
-        }
+        applyHighlight(data);
       })
       .catch(() => setError('خطا در بارگذاری فهرست'))
       .finally(() => setLoading(false));

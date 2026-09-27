@@ -1,4 +1,5 @@
 import PlacesCategoryClient from './PlacesCategoryClient';
+import { fetchPoiList } from '@/lib/api';
 import { pageMeta } from '@/lib/seo';
 
 // Was a client component with zero generateMetadata -- every one of these
@@ -27,6 +28,11 @@ export async function generateMetadata({ params }) {
   return pageMeta({ title, description, path: `/places/${params.category}` });
 }
 
-const PlaceCategoryPage = () => <PlacesCategoryClient />;
+const PlaceCategoryPage = async ({ params }) => {
+  const places = CATEGORY_LABELS[params.category]
+    ? await fetchPoiList(params.category).catch(() => undefined)
+    : undefined;
+  return <PlacesCategoryClient initialPlaces={places} />;
+};
 
 export default PlaceCategoryPage;
