@@ -1,6 +1,7 @@
 import Article from '@/models/Article';
 import connectDB from '@/config/database';
 import { NEIGHBORHOODS } from '@/lib/neighborhoods';
+import { canonicalTwin } from '@/lib/place';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,24 @@ export default async function sitemap() {
     // Same fallback reasoning as the listings fetch above.
   }
 
+  // Per-place pages for hospitals and libraries (see app/places/[category]/[id]).
+  let placeUrls = [];
+  for (const category of ['hospital', 'library']) {
+    try {
+      const res = await fetch(`${API}/api/poi-list?category=${category}`, { cache: 'no-store' });
+      if (res.ok) {
+        const places = await res.json();
+        placeUrls = placeUrls.concat(
+          places
+            .filter((p) => p.lat != null && !canonicalTwin(category, p, places))
+            .map((p) => ({ url: `${DOMAIN}/places/${category}/${p.id}`, lastModified: new Date() }))
+        );
+      }
+    } catch {
+      // same fallback reasoning as the listings fetch above
+    }
+  }
+
   const articleUrls = articles.map((article) => ({
     url: `${DOMAIN}/articles/${article.slug}`,
     lastModified: article.updatedAt,
@@ -103,6 +122,7 @@ export default async function sitemap() {
     ...materialCategoryUrls,
     ...districtUrls,
     ...schoolUrls,
+    ...placeUrls,
     ...articleUrls,
     ...listingUrls,
   ];

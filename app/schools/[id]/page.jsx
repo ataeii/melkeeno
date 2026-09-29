@@ -1,38 +1,105 @@
-import { fetchAllSchools } from '@/lib/api';
+import { fetchAllSchools, fetchPlaceContext } from '@/lib/api';
 import SchoolDetailClient from './SchoolDetailClient';
 import { pageMeta } from '@/lib/seo';
+import PlaceContext from '@/components/PlaceContext';
+import SchoolProfile from '@/components/SchoolProfile';
+import { profileForSchool } from '@/lib/schoolProfiles';
+import { cleanText, placeIntro, schoolTitle } from '@/lib/place';
 
-// Was a client component with zero generateMetadata -- all 147 school
-// pages served the exact same generic site-wide title/description to
-// Google regardless of which school it was, same root cause already fixed
-// for listing/district pages (see app/properties/listing/[token]/page.jsx).
+const DOMAIN = 'https://khanedade.ir';
+
 // No single-school backend endpoint exists, so this fetches the full list
-// server-side (same helper the client component already used) and finds
-// the match by id -- an extra request per page load, but 147 rows is cheap.
-export async function generateMetadata({ params }) {
-  const schoolId = Number(params.id);
+// server-side and finds the match by id -- 147 rows is cheap. The school's
+// surroundings (vicinity, local housing prices, nearby listings, metro...)
+// come from /api/place-context, same as the hospital/library pages.
+async function load(id) {
   const schools = await fetchAllSchools().catch(() => []);
-  const school = (Array.isArray(schools) ? schools : []).find((s) => s.id === schoolId);
+  const school = (Array.isArray(schools) ? schools : []).find((s) => s.id === Number(id));
+  if (!school) return null;
+  const context =
+    school.lat != null
+      ? await fetchPlaceContext({ lat: school.lat, lng: school.lng, excludeKind: 'school', excludeId: school.id }).catch(
+          () => null
+        )
+      : null;
+  return { school, context, vicinity: context?.vicinity || null };
+}
 
-  if (!school) return { title: 'مدرسه یافت نشد | خانه‌داده' };
+// "مدرسه‌ی غیر دولتی دخترانه در مقطع متوسطه دوره دوم" from the raw fields.
+function schoolKindPhrase(school) {
+  const level = cleanText(school.base_level)
+    .replace(school.school_type || '§', '')
+    .replace(school.gender || '§', '')
+    .trim();
+  return ['یک مدرسه‌ی', school.school_type, school.gender, level ? `در مقطع ${level}` : null]
+    .filter(Boolean)
+    .join(' ');
+}
 
-  const titleParts = [school.name];
-  if (school.district_num != null) titleParts.push(`منطقه ${school.district_num}`);
-  const title = `${titleParts.join(' — ')} | خانه‌داده`;
+export async function generateMetadata({ params }) {
+  const data = await load(params.id);
+  if (!data) return { title: 'مدرسه یافت نشد | خانه‌داده' };
+  const { school, vicinity } = data;
 
-  const descriptionParts = [school.name];
-  if (school.base_level) descriptionParts.push(school.base_level);
-  if (school.school_type) descriptionParts.push(school.school_type);
-  if (school.address) descriptionParts.push(school.address);
-  const description = descriptionParts.join('، ') + ' — نظرات و امتیاز والدین، در خانه‌داده.';
+  const title = `${schoolTitle(school, vicinity)} | خانه‌داده`;
+  const descriptionParts = [cleanText(school.name)];
+  if (school.base_level) descriptionParts.push(cleanText(school.base_level));
+  if (vicinity) descriptionParts.push(`محدوده‌ی ${vicinity}`);
+  const profile = profileForSchool(school.id);
+  if (profile?.orientation) descriptionParts.push(`تمرکز: ${profile.orientation}`);
+  else if (school.address) descriptionParts.push(cleanText(school.address));
+  const description = (
+    descriptionParts.join('، ') +
+    (profile?.highlights?.length ? ' — دستاوردها، ' : ' — ') +
+    'نظرات والدین، قیمت مسکن و آگهی‌های اطراف مدرسه در خانه‌داده.'
+  ).slice(0, 300);
 
   return pageMeta({ title, description, path: `/schools/${params.id}` });
 }
 
 const SchoolDetailPage = async ({ params }) => {
-  const schools = await fetchAllSchools().catch(() => []);
-  const school = (Array.isArray(schools) ? schools : []).find((s) => s.id === Number(params.id));
-  return <SchoolDetailClient initialSchool={school} />;
+  const data = await load(params.id);
+  if (!data) return <SchoolDetailClient initialSchool={null} />;
+  const { school, context, vicinity } = data;
+  const name = cleanText(school.name);
+
+  const intro = placeIntro({
+    name,
+    kindPhrase: schoolKindPhrase(school),
+    vicinity,
+    districtNum: school.district_num,
+    address: cleanText(school.address),
+    context,
+  });
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'School',
+    name,
+    url: `${DOMAIN}/schools/${school.id}`,
+    address: {
+      '@type': 'PostalAddress',
+      ...(school.address ? { streetAddress: cleanText(school.address) } : {}),
+      addressLocality: 'تهران',
+      addressCountry: 'IR',
+    },
+    ...(school.lat != null ? { geo: { '@type': 'GeoCoordinates', latitude: school.lat, longitude: school.lng } } : {}),
+  };
+
+  return (
+    <SchoolDetailClient initialSchool={school}>
+      <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <SchoolProfile profile={profileForSchool(school.id)} name={name} />
+      <div className='bg-white rounded-xl shadow-md p-5 mb-6 text-sm text-gray-700 leading-7 flex flex-col gap-2'>
+        {intro.map((line, i) => (
+          <p key={i}>{line}</p>
+        ))}
+      </div>
+      <div className='mb-6'>
+        <PlaceContext context={context} placeLabel={name} />
+      </div>
+    </SchoolDetailClient>
+  );
 };
 
 export default SchoolDetailPage;

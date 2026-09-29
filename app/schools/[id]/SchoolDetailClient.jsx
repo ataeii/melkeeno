@@ -26,7 +26,7 @@ const Stars = ({ value, onChange, size = 'text-lg' }) => (
   </div>
 );
 
-const SchoolDetailClient = ({ initialSchool }) => {
+const SchoolDetailClient = ({ initialSchool, children }) => {
   const params = useParams();
   const schoolId = Number(params.id);
   const { data: session } = useSession();
@@ -135,7 +135,7 @@ const SchoolDetailClient = ({ initialSchool }) => {
         <div className='flex flex-wrap gap-1.5 mb-3'>
           {school.district_num != null && (
             <span className='text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full'>
-              منطقه {school.district_num}
+              منطقه {Number(school.district_num).toLocaleString('fa-IR')}
             </span>
           )}
           {school.base_level && (
@@ -167,6 +167,9 @@ const SchoolDetailClient = ({ initialSchool }) => {
           <SchoolLocationMap lat={school.lat} lng={school.lng} name={school.name} />
         </div>
       )}
+
+      {/* Server-rendered intro + surroundings (see page.jsx) */}
+      {children}
 
       {/* Review form */}
       <div className='bg-white rounded-xl shadow-md p-5 mb-6'>

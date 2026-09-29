@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { fetchPoiList } from '@/lib/api';
+import { PLACE_PAGE_CATEGORIES, canonicalTwin, displayName } from '@/lib/place';
 import {
   FaHospital,
   FaShoppingCart,
@@ -84,7 +85,11 @@ const PlacesCategoryClient = ({ initialPlaces }) => {
     );
   }
 
-  const filtered = places.filter(
+  // Duplicate source entries of the same hospital/library are listed once.
+  const unique = PLACE_PAGE_CATEGORIES[category]
+    ? places.filter((p) => !canonicalTwin(category, p, places))
+    : places;
+  const filtered = unique.filter(
     (p) => !query || p.name.includes(query) || (p.address || '').includes(query)
   );
 
@@ -154,7 +159,17 @@ const PlacesCategoryClient = ({ initialPlaces }) => {
                 activeId === place.id ? 'border-2 border-amber-400' : 'border border-transparent hover:border-gray-200'
               }`}
             >
-              <div className='font-bold text-sm text-gray-800 mb-1'>{place.name}</div>
+              {PLACE_PAGE_CATEGORIES[category] ? (
+                <Link
+                  href={`/places/${category}/${place.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className='block font-bold text-sm text-blue-700 hover:underline mb-1'
+                >
+                  {displayName(category, place)}
+                </Link>
+              ) : (
+                <div className='font-bold text-sm text-gray-800 mb-1'>{place.name}</div>
+              )}
               {place.address && <div className='text-xs text-gray-500 mb-1'>{place.address}</div>}
               {place.phone && <div className='text-xs text-gray-500 mb-1'>📞 {place.phone}</div>}
             </div>
