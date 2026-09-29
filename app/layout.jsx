@@ -4,6 +4,7 @@ import AuthProvider from '@/components/AuthProvider';
 import { BookmarksProvider } from '@/context/BookmarksContext';
 import { ToastContainer } from 'react-toastify';
 import '@/assets/styles/globals.css';
+import { RSS_ALTERNATE } from '@/lib/seo';
 import 'react-toastify/dist/ReactToastify.css';
 
 const DOMAIN = 'https://khanedade.ir';
@@ -13,6 +14,8 @@ export const metadata = {
   title: 'خانه‌داده | جستجوی هوشمند ملک در تهران',
   description: 'جست‌وجوی ملک، آپارتمان و زمین در تهران با تحلیل قیمت منصفانه و امکانات محله.',
   keywords: 'ملک، آپارتمان، اجاره، خرید، زمین، مسکن',
+  // RSS feed of articles -- lets Google Discover offer a "Follow" button.
+  alternates: { types: RSS_ALTERNATE },
   openGraph: {
     siteName: 'خانه‌داده',
     type: 'website',

@@ -4,7 +4,13 @@ import connectDB from '@/config/database';
 import Article from '@/models/Article';
 import ArticleComments from '@/components/ArticleComments';
 import { FaArrowRight } from 'react-icons/fa';
-import { pageMeta } from '@/lib/seo';
+import { pageMeta, indexableRobots } from '@/lib/seo';
+
+const DOMAIN = 'https://khanedade.ir';
+
+// First photo in the article body -- used as its share/Discover image and
+// in the Article structured data (69 of 77 articles have one as of 2026-09).
+const leadImage = (article) => (article.content || []).find((b) => b.type === 'image' && b.url)?.url || null;
 
 // See app/articles/page.jsx -- without this, a status/content edit in the
 // DB wouldn't show up until the next code deploy.
@@ -55,17 +61,20 @@ export async function generateMetadata({ params }) {
   const article = await getArticle(params.slug);
   if (!article) return { title: 'مقاله یافت نشد' };
 
+  const image = leadImage(article);
   return {
     ...pageMeta({
       title: `${article.title} | خانه‌داده`,
       description: article.excerpt,
       path: `/articles/${article.slug}`,
       type: 'article',
+      images: image ? [image] : undefined,
     }),
     // Drafts stay reachable by direct link for review, but must never be
     // indexed or show up in the public /articles list before someone signs
-    // off on them.
-    robots: { index: article.status === 'published', follow: article.status === 'published' },
+    // off on them. (indexableRobots keeps max-image-preview:large, which
+    // Discover requires -- a plain { index, follow } here used to drop it.)
+    robots: indexableRobots(article.status === 'published'),
   };
 }
 
@@ -109,6 +118,13 @@ const ArticlePage = async ({ params }) => {
   if (!article) notFound();
   const seriesNav = await getSeriesNav(article.slug);
 
+  const image = leadImage(article);
+  const publisher = {
+    '@type': 'Organization',
+    name: 'خانه‌داده',
+    url: DOMAIN,
+    logo: { '@type': 'ImageObject', url: `${DOMAIN}/icon.png`, width: 400, height: 400 },
+  };
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -117,6 +133,11 @@ const ArticlePage = async ({ params }) => {
     articleSection: article.category,
     datePublished: article.createdAt,
     dateModified: article.updatedAt,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `${DOMAIN}/articles/${article.slug}` },
+    image: [image ? image : `${DOMAIN}/images/screen.jpg`],
+    // Most articles are unsigned site content -- credit the site itself then.
+    author: article.author ? { '@type': 'Person', name: article.author } : { ...publisher },
+    publisher,
   };
 
   return (
