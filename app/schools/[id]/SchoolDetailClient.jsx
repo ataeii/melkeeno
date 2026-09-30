@@ -26,7 +26,7 @@ const Stars = ({ value, onChange, size = 'text-lg' }) => (
   </div>
 );
 
-const SchoolDetailClient = ({ initialSchool, children }) => {
+const SchoolDetailClient = ({ initialSchool, displayName, children }) => {
   const params = useParams();
   const schoolId = Number(params.id);
   const { data: session } = useSession();
@@ -128,7 +128,7 @@ const SchoolDetailClient = ({ initialSchool, children }) => {
       <div className='bg-white rounded-xl shadow-md p-5 mb-6'>
         <div className='flex items-start gap-2 mb-2'>
           <FaSchool className='text-blue-700 text-xl mt-1' />
-          <h1 className='text-xl font-extrabold text-gray-800'>{school.name}</h1>
+          <h1 className='text-xl font-extrabold text-gray-800'>{displayName || school.name}</h1>
         </div>
         {school.address && <p className='text-sm text-gray-500 mb-3'>{school.address}</p>}
 

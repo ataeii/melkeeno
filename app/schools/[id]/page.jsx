@@ -4,7 +4,7 @@ import { pageMeta } from '@/lib/seo';
 import PlaceContext from '@/components/PlaceContext';
 import SchoolProfile from '@/components/SchoolProfile';
 import { profileForSchool } from '@/lib/schoolProfiles';
-import { cleanText, placeIntro, schoolTitle } from '@/lib/place';
+import { cleanText, placeIntro, schoolDisplayName, schoolStreet, schoolTitle } from '@/lib/place';
 
 const DOMAIN = 'https://khanedade.ir';
 
@@ -42,9 +42,12 @@ export async function generateMetadata({ params }) {
   const { school, vicinity } = data;
 
   const title = `${schoolTitle(school, vicinity)} | خانه‌داده`;
-  const descriptionParts = [cleanText(school.name)];
-  if (school.base_level) descriptionParts.push(cleanText(school.base_level));
+  // Same search-shaped wording as the title (level + gender + name + street).
+  const descriptionParts = [schoolDisplayName(school)];
+  const street = schoolStreet(school);
+  if (street) descriptionParts.push(street);
   if (vicinity) descriptionParts.push(`محدوده‌ی ${vicinity}`);
+  if (school.district_num != null) descriptionParts.push(`منطقه ${Number(school.district_num).toLocaleString('fa-IR')} تهران`);
   const profile = profileForSchool(school.id);
   if (profile?.orientation) descriptionParts.push(`تمرکز: ${profile.orientation}`);
   else if (school.address) descriptionParts.push(cleanText(school.address));
@@ -76,6 +79,7 @@ const SchoolDetailPage = async ({ params }) => {
     '@context': 'https://schema.org',
     '@type': 'School',
     name,
+    alternateName: schoolDisplayName(school),
     url: `${DOMAIN}/schools/${school.id}`,
     address: {
       '@type': 'PostalAddress',
@@ -87,7 +91,7 @@ const SchoolDetailPage = async ({ params }) => {
   };
 
   return (
-    <SchoolDetailClient initialSchool={school}>
+    <SchoolDetailClient initialSchool={school} displayName={schoolDisplayName(school)}>
       <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <SchoolProfile profile={profileForSchool(school.id)} name={name} />
       <div className='bg-white rounded-xl shadow-md p-5 mb-6 text-sm text-gray-700 leading-7 flex flex-col gap-2'>
