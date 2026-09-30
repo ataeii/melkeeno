@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation';
-import { fetchListing, fetchListings } from '@/lib/api';
+import { fetchListing, fetchListings, fetchRentDistricts } from '@/lib/api';
+import Link from 'next/link';
+import { rentPagePath } from '@/lib/rentPages';
 import ListingDetailClient from './ListingDetailClient';
 import { pageMeta } from '@/lib/seo';
 
@@ -137,12 +139,26 @@ const ListingDetailPage = async ({ params }) => {
   }
 
   const jsonLd = property ? buildJsonLd(params.token, property) : null;
+
+  // Rent listings link to their neighborhood's rental page when one exists.
+  let rentPage = null;
+  if (property?.listing_type === 'rent' && property.district) {
+    const d = (await fetchRentDistricts().catch(() => [])).find((x) => x.district === property.district);
+    if (d) rentPage = { href: rentPagePath(d.district), district: d.district, count: d.count };
+  }
   return (
     <>
       {jsonLd && (
         <script type='application/ld+json' dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
       <ListingDetailClient initialProperty={property} initialSimilar={similar} />
+      {rentPage && (
+        <div dir='rtl' className='max-w-5xl mx-auto px-4 pb-8'>
+          <Link href={rentPage.href} className='text-blue-700 text-sm font-semibold hover:underline'>
+            همه‌ی {rentPage.count.toLocaleString('fa-IR')} آگهی اجاره‌ی آپارتمان در {rentPage.district} ←
+          </Link>
+        </div>
+      )}
     </>
   );
 };

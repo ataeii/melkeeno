@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { fetchRentDistricts } from '@/lib/api';
+import { rentPagePath } from '@/lib/rentPages';
 import { notFound } from 'next/navigation';
 import connectDB from '@/config/database';
 import Article from '@/models/Article';
@@ -55,10 +57,12 @@ const DistrictPage = async ({ params }) => {
   const neighborhood = findNeighborhoodBySlug(params.slug);
   if (!neighborhood) notFound();
 
-  const [listings, guide] = await Promise.all([
+  const [listings, guide, rentDistricts] = await Promise.all([
     fetchDistrictListings(neighborhood.dbName).catch(() => []),
     getGuideExcerpt(neighborhood.guideSlug),
+    fetchRentDistricts().catch(() => []),
   ]);
+  const rentPage = rentDistricts.find((d) => d.district === neighborhood.dbName);
 
   const buyListings = listings.filter((l) => l.listing_type === 'buy' && l.price);
   const rentListings = listings.filter((l) => l.listing_type === 'rent' && l.rent);
@@ -91,6 +95,11 @@ const DistrictPage = async ({ params }) => {
       </Link>
 
       <h1 className='text-2xl font-extrabold text-gray-800 mb-2'>خرید و اجاره ملک در {neighborhood.label}</h1>
+      {rentPage && (
+        <Link href={rentPagePath(rentPage.district)} className='inline-block mb-3 text-sm text-blue-700 font-semibold hover:underline'>
+          همه‌ی {rentPage.count.toLocaleString('fa-IR')} آگهی اجاره‌ی آپارتمان در {neighborhood.label} ←
+        </Link>
+      )}
 
       <div className='flex flex-wrap gap-3 mb-6 text-sm'>
         <span className='bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full font-semibold'>{listings.length} آگهی فعال</span>

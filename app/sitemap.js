@@ -89,6 +89,24 @@ export default async function sitemap() {
     }
   }
 
+  // Per-neighborhood rental pages (only neighborhoods the backend lists).
+  let rentUrls = [];
+  try {
+    const res = await fetch(`${API}/api/rent-districts`, { cache: 'no-store' });
+    if (res.ok) {
+      const districts = await res.json();
+      rentUrls = [
+        { url: `${DOMAIN}/properties/rent`, lastModified: new Date() },
+        ...districts.map((d) => ({
+          url: `${DOMAIN}/properties/rent/${encodeURIComponent(d.district)}`,
+          lastModified: new Date(),
+        })),
+      ];
+    }
+  } catch {
+    // same fallback reasoning as the listings fetch above
+  }
+
   const articleUrls = articles.map((article) => ({
     url: `${DOMAIN}/articles/${article.slug}`,
     lastModified: article.updatedAt,
@@ -128,6 +146,7 @@ export default async function sitemap() {
     ...districtUrls,
     ...schoolUrls,
     ...placeUrls,
+    ...rentUrls,
     ...articleUrls,
     ...listingUrls,
   ];

@@ -29,7 +29,9 @@ const NearbyRow = ({ href, name, meta, distance }) => (
   </li>
 );
 
-const PlaceContext = ({ context, placeLabel }) => {
+const PlaceContext = ({ context, placeLabel, only }) => {
+  // `only`: optional list of blocks to render ('prices' | 'listings' | 'nearby').
+  const show = (block) => !only || only.includes(block);
   if (!context) return null;
   const { prices = {}, vicinity } = context;
   const neighborhood = vicinity ? findNeighborhood(vicinity) : null;
@@ -43,7 +45,7 @@ const PlaceContext = ({ context, placeLabel }) => {
 
   return (
     <div className='flex flex-col gap-6'>
-      {hasPrices && (
+      {show('prices') && hasPrices && (
         <div className='bg-white rounded-xl shadow-md p-5'>
           <h2 className='font-bold text-gray-800 mb-1'>
             قیمت مسکن در اطراف {placeLabel}
@@ -85,7 +87,7 @@ const PlaceContext = ({ context, placeLabel }) => {
         </div>
       )}
 
-      {listings.length > 0 && (
+      {show('listings') && listings.length > 0 && (
         <div className='bg-white rounded-xl shadow-md p-5'>
           <h2 className='font-bold text-gray-800 mb-2'>آگهی‌های خرید و اجاره نزدیک {placeLabel}</h2>
           <ul>
@@ -110,7 +112,7 @@ const PlaceContext = ({ context, placeLabel }) => {
         </div>
       )}
 
-      {Boolean(metro || park || schools.length || hospitals.length || libraries.length) && (
+      {show('nearby') && Boolean(metro || park || schools.length || hospitals.length || libraries.length) && (
         <div className='bg-white rounded-xl shadow-md p-5'>
           <h2 className='font-bold text-gray-800 mb-2'>در همین نزدیکی</h2>
           <ul>

@@ -333,6 +333,9 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
           <h1 className='px-3 pt-3 text-base font-extrabold text-navy-800'>
             آگهی‌های خرید و اجاره آپارتمان در تهران
           </h1>
+          <a href='/properties/rent' className='block px-3 text-xs text-blue-700 font-semibold hover:underline'>
+            اجاره آپارتمان به تفکیک محله ←
+          </a>
           {loading && listings.length === 0 && (
             <div className='flex items-center justify-center h-32 text-gray-400'>
               <span>در حال بارگذاری...</span>
