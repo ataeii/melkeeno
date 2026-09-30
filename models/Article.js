@@ -24,6 +24,8 @@ const ArticleSchema = new Schema(
     category: { type: String, required: true }, // matches ARTICLE_CATEGORIES in app/articles/page.jsx
     coverEmoji: String, // no image pipeline for this content yet -- a large emoji as a lightweight placeholder cover
     author: String, // byline -- optional; most articles are unsigned site content, only shown when set
+    pinned: { type: Boolean, default: false }, // shown first on /articles (e.g. the «زبان الگو» series introduction)
+    section: String, // optional override of the rule in lib/articleSections.js
     content: { type: [BlockSchema], required: true },
     status: { type: String, enum: ['draft', 'published'], default: 'draft' },
   },

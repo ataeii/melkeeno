@@ -48,24 +48,43 @@ function buildPrompt(s) {
   lines.push(`اقساط بدهی فعلی: ${fmt(s.existingDebtPayments)} تومان در ماه`);
   lines.push(`توان پس‌انداز ماهانه: ${fmt(s.monthlySavingsCapacity)} تومان`);
   lines.push(`ارزش خالص دارایی‌ها: ${fmt(s.netWorth)} تومان`);
-  lines.push(`دارایی نقدشونده (نقد + طلا/نقره): ${fmt(s.liquidAssets)} تومان`);
-  if (s.weddingCost) lines.push(`هزینه تخمینی ازدواج: ${fmt(s.weddingCost)} تومان`);
+  lines.push(`دارایی نقدشونده قابل استفاده برای مسکن (نقد + طلا/نقره): ${fmt(s.liquidAssets)} تومان`);
+  if (s.weddingCost) lines.push(`هزینه تخمینی ازدواج (از نقدینگی بالا کسر شده): ${fmt(s.weddingCost)} تومان`);
+  if (s.monthlySavingsCapacity != null && s.monthlySavingsCapacity <= 0)
+    lines.push('هشدار: هزینه‌های ماهانه برابر یا بیشتر از درآمد است — این را صریح و دلسوزانه مطرح کن.');
   lines.push('');
   lines.push('--- تحلیل انجام‌شده (قانون ۲۸/۳۶) ---');
   lines.push(`حداکثر پرداخت مسکن توصیه‌شده (۲۸٪ درآمد): ${fmt(s.dti.maxRecommendedHousingPayment)} تومان در ماه`);
   lines.push(`حداکثر کل بدهی توصیه‌شده (۳۶٪ درآمد): ${fmt(s.dti.maxRecommendedTotalDebt)} تومان در ماه`);
   lines.push(`حداکثر اجاره توصیه‌شده (۳۰٪ درآمد): ${fmt(s.rentAffordability.recommendedMaxRent)} تومان در ماه`);
-  if (s.goalType === 'buy' || s.goalType === 'undecided') {
+  const b = s.buy || {};
+  if ((s.goalType === 'buy' || s.goalType === 'undecided') && s.targetPrice > 0) {
     lines.push('');
-    lines.push('--- سناریوی خرید ---');
+    lines.push('--- سناریوی خرید (وام اوراق تسه بانک مسکن) ---');
     lines.push(`قیمت هدف ملک: ${fmt(s.targetPrice)} تومان`);
-    lines.push(`سقف تقریبی تسهیلات بانکی قابل دریافت: ${fmt(s.buyScenario.estimatedLoanAvailable)} تومان (تقریبی، حتماً با بانک چک شود)`);
-    lines.push(`پیش‌پرداخت نقدی مورد نیاز: ${fmt(s.buyScenario.downPaymentNeeded)} تومان`);
+    lines.push(`مبلغ وام: ${fmt(b.loanAmount)} تومان (سقف: ${fmt(b.ceiling)})`);
+    lines.push(`پیش‌پرداخت نقدی: ${fmt(b.downPayment)} تومان`);
+    lines.push(`هزینه‌ی خرید اوراق تسه (تقریبی، روزانه تغییر می‌کند): ${fmt(b.bondCost)} تومان`);
+    lines.push(`کل پول نقد لازم: ${fmt(b.cashNeeded)} تومان`);
+    lines.push(`قسط ماهانه‌ی وام: ${fmt(b.installment)} تومان (${b.installmentShare != null ? Math.round(b.installmentShare * 100) : 'نامشخص'}٪ درآمد)`);
+    lines.push(`قسط در محدوده‌ی ۲۸٪ درآمد: ${b.fitsHousingRule ? 'بله' : 'خیر'} — کل بدهی در محدوده‌ی ۳۶٪: ${b.fitsTotalDebtRule ? 'بله' : 'خیر'}`);
+    lines.push(`مانده‌ی ماهانه پس از خرید: ${fmt(b.monthlyLeftAfterBuying)} تومان`);
+    // monthsToAfford: 0 = already enough cash, null = not reachable (JSON
+    // turns Infinity into null -- it used to be read here as "0 months").
     lines.push(
-      s.buyScenario.monthsToSaveDownPayment === Infinity || s.buyScenario.monthsToSaveDownPayment < 0
-        ? 'با توان پس‌انداز فعلی، رسیدن به این پیش‌پرداخت در بازه معقول مشخص نیست'
-        : `با توان پس‌انداز فعلی، حدود ${Math.ceil(s.buyScenario.monthsToSaveDownPayment)} ماه دیگر تا رسیدن به پیش‌پرداخت لازم است`
+      b.alreadyAffordable
+        ? 'نقدینگی فعلی برای پیش‌پرداخت و اوراق کافی است.'
+        : b.monthsToAfford == null
+        ? 'با توان پس‌انداز فعلی، رسیدن به پول نقد لازم در ۳۰ سال آینده ممکن نیست.'
+        : `با توان پس‌انداز فعلی${b.annualGrowth ? ` و رشد سالانه‌ی ${Math.round(b.annualGrowth * 100)}٪ قیمت مسکن` : ' (با فرض ثابت ماندن قیمت)'}، حدود ${Math.ceil(b.monthsToAfford)} ماه تا رسیدن به پول نقد لازم فاصله دارد؛ ${b.withinTimeline ? 'در افق زمانی مدنظرش' : 'بیشتر از افق زمانی مدنظرش'} (${Math.round((s.timelineMonths || 0) / 12)} سال).`
     );
+  }
+  const r = s.rent || {};
+  if (s.goalType === 'rent' || s.goalType === 'undecided') {
+    lines.push('');
+    lines.push('--- سناریوی اجاره (رهن و اجاره، تبدیل ۳٪ ماهانه) ---');
+    lines.push(`حداکثر رهن با نقدینگی فعلی: ${fmt(r.maxDeposit)} تومان`);
+    lines.push(`حداکثر «معادل اجاره» قابل تحمل (اجاره + ۳٪ رهن): ${fmt(r.maxRentEquivalent)} تومان در ماه`);
   }
   lines.push('');
   lines.push('--- تسهیلات قابل بررسی (ارقام تقریبی ۱۴۰۵، حتماً با بانک/مرجع رسمی چک شود) ---');

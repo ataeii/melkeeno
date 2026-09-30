@@ -1,7 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
+import Link from 'next/link';
 import { FaArrowRight, FaArrowLeft, FaMagic } from 'react-icons/fa';
+import { computeSummary, LOAN_TERMS_AS_OF, TSE_CEILING, TSE_RATE, TSE_YEARS, BOND_COST_RATIO, RAHN_RATE } from '@/lib/financePlan';
 
 const inputClass =
   'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -25,44 +27,39 @@ const initialForm = {
   goalType: 'buy', // buy | rent | undecided
   targetPrice: '',
   timelineYears: '3',
+  priceGrowth: '',
   weddingCost: '',
 };
+
+// Persian digits throughout the results (the page used to mix «100 میلیون»
+// Latin digits into Persian text).
+const fa = (n, digits = 0) =>
+  Number(n).toLocaleString('fa-IR', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 
 const fmtToman = (n) => {
   if (n == null || isNaN(n)) return '—';
   const v = Math.round(n);
-  if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(2) + ' میلیارد تومان';
-  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(0) + ' میلیون تومان';
-  return v.toLocaleString('en-US') + ' تومان';
+  if (Math.abs(v) >= 1e9) return fa(v / 1e9, 2) + ' میلیارد تومان';
+  if (Math.abs(v) >= 1e6) return fa(v / 1e6) + ' میلیون تومان';
+  return fa(v) + ' تومان';
 };
 
-// Approximate 1405 (2026) figures from public/aggregator sources — loan
-// ceilings, rates, and queue times change often via central bank circulars,
-// so these exist only to give a ballpark and are always shown with a
-// "verify with the bank" note, never asserted as exact.
-const TSE_CEILING = {
-  tehran: { single: 400_000_000, couple: 1_000_000_000 },
-  other_center: { single: 320_000_000, couple: 640_000_000 },
-  small_city: { single: 240_000_000, couple: 480_000_000 },
-};
+const pct = (x) => (x == null ? '—' : `${fa(Math.round(x * 100))}٪`);
 
+// Loan programmes shown with every result. The تسه figures come from
+// lib/financePlan.js (sourced, dated); the rest are approximate ballparks
+// that change often by circular, always shown with a "verify" note.
 function getApplicablePrograms(maritalStatus, city) {
   const tse = TSE_CEILING[city];
-  const programs = [];
+  const couple = maritalStatus !== 'single';
+  const programs = [
+    {
+      name: couple ? 'وام خرید مسکن با اوراق تسه (زوجین)' : 'وام خرید مسکن با اوراق تسه (فردی)',
+      note: `سقف ${fmtToman(couple ? tse.couple : tse.single)}، سود ${fa(TSE_RATE * 100, 1)} درصد، بازپرداخت تا ${fa(TSE_YEARS)} سال (ارقام ${LOAN_TERMS_AS_OF}). خرید اوراق لازم حدود ${fa(BOND_COST_RATIO * 100)}٪ مبلغ وام هزینه دارد و قیمت اوراق روزانه در بورس تغییر می‌کند.`,
+    },
+  ];
 
-  if (maritalStatus === 'single') {
-    programs.push({
-      name: 'اوراق تسه بانک مسکن (فردی)',
-      note: `سقف تقریبی ${fmtToman(tse.single)} — با خرید اوراق تسهیلات مسکن در بورس و مراجعه به بانک مسکن. قیمت اوراق روزانه در بورس تغییر می‌کند.`,
-    });
-  } else {
-    programs.push({
-      name: 'اوراق تسه بانک مسکن (زوجین)',
-      note: `سقف تقریبی ${fmtToman(tse.couple)} در صورت ترکیب سهمیه هر دو نفر. قیمت اوراق روزانه در بورس تغییر می‌کند.`,
-    });
-  }
-
-  if (maritalStatus !== 'single') {
+  if (couple) {
     programs.push({
       name: 'وام ازدواج',
       note: 'سقف تقریبی ۳۰۰ میلیون تومان برای هر نفر (تا ۳۵۰ میلیون برای زوج‌های جوان‌تر)، حدود ۶۰۰ میلیون تومان برای زوجین، بازپرداخت ده‌ساله. معمولاً نوبت‌دهی دارد؛ زمان انتظار متغیر است.',
@@ -73,6 +70,10 @@ function getApplicablePrograms(maritalStatus, city) {
     });
   }
 
+  programs.push({
+    name: 'وام ودیعه مسکن (برای مستأجران)',
+    note: 'طبق گزارش‌های ۱۴۰۵، سقف حدود ۳۶۵ میلیون تومان در تهران با سود حدود ۲۳ درصد — برای تأمین بخشی از رهن خانه‌ی اجاره‌ای.',
+  });
   programs.push({
     name: 'نهضت ملی مسکن',
     note: 'سقف تسهیلات تقریبی ۸۵۰ میلیون تومان (متغیر بر اساس شهر و طرح)، از طریق ثبت‌نام در سامانه ملی مسکن.',
@@ -85,63 +86,20 @@ function getApplicablePrograms(maritalStatus, city) {
   return programs;
 }
 
-const MILLION = 1_000_000;
-
-function computeSummary(form) {
-  // Income fields are entered in millions of toman (e.g. "20" means
-  // 20,000,000 toman) — much easier to type than the full figure.
-  const incomeSelf = (Number(form.incomeSelf) || 0) * MILLION;
-  const incomeSpouse = form.maritalStatus !== 'single' ? (Number(form.incomeSpouse) || 0) * MILLION : 0;
-  const incomeOther = (Number(form.incomeOther) || 0) * MILLION;
-  const totalMonthlyIncome = incomeSelf + incomeSpouse + incomeOther;
-
-  // All money fields below are entered in millions of toman, same as income.
-  const cash = (Number(form.cash) || 0) * MILLION;
-  const goldSilverValue = (Number(form.goldSilverValue) || 0) * MILLION;
-  const otherProperty = (Number(form.otherProperty) || 0) * MILLION;
-  const car = (Number(form.car) || 0) * MILLION;
-  const otherInvestments = (Number(form.otherInvestments) || 0) * MILLION;
-  const netWorth = cash + goldSilverValue + otherProperty + car + otherInvestments;
-  const liquidAssets = cash + goldSilverValue;
-
-  const existingDebtPayments = (Number(form.existingDebtPayments) || 0) * MILLION;
-  const monthlyExpenses = (Number(form.monthlyExpenses) || 0) * MILLION;
-  const currentRent = form.isRentingNow ? (Number(form.currentRent) || 0) * MILLION : 0;
-
-  const monthlySavingsCapacity = totalMonthlyIncome - monthlyExpenses - existingDebtPayments - currentRent;
-
-  const dti = {
-    maxRecommendedHousingPayment: totalMonthlyIncome * 0.28,
-    maxRecommendedTotalDebt: totalMonthlyIncome * 0.36,
-  };
-  const rentAffordability = {
-    recommendedMaxRent: totalMonthlyIncome * 0.3,
-  };
-
-  const tse = TSE_CEILING[form.city];
-  const estimatedLoanAvailable = form.maritalStatus === 'single' ? tse.single : tse.couple;
-  const targetPrice = (Number(form.targetPrice) || 0) * MILLION;
-  const downPaymentNeeded = Math.max(0, targetPrice - estimatedLoanAvailable);
-  const monthsToSaveDownPayment =
-    monthlySavingsCapacity > 0 ? Math.max(0, (downPaymentNeeded - liquidAssets) / monthlySavingsCapacity) : Infinity;
-
-  return {
-    totalMonthlyIncome,
-    netWorth,
-    liquidAssets,
-    existingDebtPayments,
-    monthlyExpenses,
-    currentRent,
-    monthlySavingsCapacity,
-    dti,
-    rentAffordability,
-    goalType: form.goalType,
-    targetPrice,
-    weddingCost: (Number(form.weddingCost) || 0) * MILLION,
-    buyScenario: { estimatedLoanAvailable, downPaymentNeeded, monthsToSaveDownPayment },
-    applicablePrograms: getApplicablePrograms(form.maritalStatus, form.city),
-  };
-}
+// Text input rather than type="number": number inputs silently reject
+// Persian digits (۲۰۰) in most browsers, leaving the field empty for anyone
+// on a Persian keyboard. lib/financePlan's parseAmount handles both.
+const AmountInput = ({ value, onChange, placeholder }) => (
+  <input
+    type='text'
+    inputMode='decimal'
+    dir='ltr'
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    className={`${inputClass} text-right`}
+  />
+);
 
 const STEP_TITLES = ['وضعیت شما', 'درآمد', 'دارایی‌ها', 'بدهی و هزینه‌ها', 'هدف شما', 'نتیجه'];
 
@@ -159,7 +117,8 @@ const FinancePage = () => {
 
   const next = () => {
     if (step === STEP_TITLES.length - 2) {
-      setSummary(computeSummary(form));
+      setSummary({ ...computeSummary(form), applicablePrograms: getApplicablePrograms(form.maritalStatus, form.city) });
+      setNarrative(null); // inputs may have changed since the last analysis
     }
     setStep((s) => Math.min(s + 1, STEP_TITLES.length - 1));
   };
@@ -172,7 +131,9 @@ const FinancePage = () => {
       const maritalStatusLabel = { single: 'مجرد', married: 'متاهل', about_to_marry: 'در آستانه ازدواج' }[
         form.maritalStatus
       ];
-      const cityLabel = { tehran: 'تهران', other_center: 'مرکز استان دیگر', small_city: 'شهر کوچک‌تر' }[form.city];
+      const cityLabel = { tehran: 'تهران', other_center: 'مرکز استان یا شهر بالای ۲۰۰ هزار نفر', small_city: 'شهر کوچک‌تر' }[
+        form.city
+      ];
       const goalLabel = { buy: 'خرید خانه', rent: 'اجاره خانه', undecided: 'هنوز مردد بین اجاره و خرید' }[
         form.goalType
       ];
@@ -200,8 +161,9 @@ const FinancePage = () => {
     <section dir='rtl' className='max-w-3xl mx-auto px-4 py-8'>
       <h1 className='text-2xl font-extrabold text-navy-800 mb-2'>برنامه‌ریز مالی خانه</h1>
       <p className='text-gray-500 text-sm mb-1'>
-        با پاسخ به چند سوال، وضعیت مالی خودتان را برای اجاره یا خرید خانه بسنجید. هیچ‌کدام از این اطلاعات ذخیره
-        نمی‌شود — فقط برای همین محاسبه استفاده می‌شود.
+        با پاسخ به چند سوال، وضعیت مالی خودتان را برای اجاره یا خرید خانه بسنجید. محاسبه‌ها در همین مرورگر انجام
+        می‌شود و چیزی ذخیره نمی‌شود؛ فقط اگر «تحلیل شخصی‌سازی‌شده» را بخواهید، خلاصه‌ی ارقام (بدون نام یا مشخصات
+        شما) برای تولید متن به یک سرویس هوش مصنوعی فرستاده می‌شود.
       </p>
       <p className='text-blue-600 text-xs font-semibold mb-4'>
         همه‌ی ارقام را به میلیون تومان وارد کنید — مثلاً برای ۲۰۰ میلیون تومان، فقط عدد ۲۰۰ را بنویسید.
@@ -246,7 +208,7 @@ const FinancePage = () => {
               <div className='flex gap-2'>
                 {[
                   { v: 'tehran', l: 'تهران' },
-                  { v: 'other_center', l: 'مرکز استان دیگر' },
+                  { v: 'other_center', l: 'مرکز استان / شهر بزرگ' },
                   { v: 'small_city', l: 'شهر کوچک‌تر' },
                 ].map(({ v, l }) => (
                   <button
@@ -269,35 +231,17 @@ const FinancePage = () => {
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div>
               <label className={labelClass}>درآمد ماهانه شما (میلیون تومان)</label>
-              <input
-                type='number'
-                value={form.incomeSelf}
-                onChange={set('incomeSelf')}
-                placeholder='مثلاً ۲۰'
-                className={inputClass}
-              />
+              <AmountInput value={form.incomeSelf} onChange={set('incomeSelf')} placeholder='مثلاً ۲۰' />
             </div>
             {form.maritalStatus !== 'single' && (
               <div>
                 <label className={labelClass}>درآمد ماهانه همسر (میلیون تومان)</label>
-                <input
-                  type='number'
-                  value={form.incomeSpouse}
-                  onChange={set('incomeSpouse')}
-                  placeholder='مثلاً ۱۵'
-                  className={inputClass}
-                />
+                <AmountInput value={form.incomeSpouse} onChange={set('incomeSpouse')} placeholder='مثلاً ۱۵' />
               </div>
             )}
             <div>
               <label className={labelClass}>سایر درآمدها (میلیون تومان) — اجاره، فریلنسری و ...</label>
-              <input
-                type='number'
-                value={form.incomeOther}
-                onChange={set('incomeOther')}
-                placeholder='مثلاً ۵'
-                className={inputClass}
-              />
+              <AmountInput value={form.incomeOther} onChange={set('incomeOther')} placeholder='مثلاً ۵' />
             </div>
           </div>
         )}
@@ -306,41 +250,23 @@ const FinancePage = () => {
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             <div>
               <label className={labelClass}>پول نقد و پس‌انداز (میلیون تومان)</label>
-              <input type='number' value={form.cash} onChange={set('cash')} placeholder='مثلاً ۲۰۰' className={inputClass} />
+              <AmountInput value={form.cash} onChange={set('cash')} placeholder='مثلاً ۲۰۰' />
             </div>
             <div>
               <label className={labelClass}>ارزش طلا و نقره (میلیون تومان)</label>
-              <input
-                type='number'
-                value={form.goldSilverValue}
-                onChange={set('goldSilverValue')}
-                placeholder='مثلاً ۱۰۰'
-                className={inputClass}
-              />
+              <AmountInput value={form.goldSilverValue} onChange={set('goldSilverValue')} placeholder='مثلاً ۱۰۰' />
             </div>
             <div>
               <label className={labelClass}>ارزش ملک دیگر (میلیون تومان)</label>
-              <input
-                type='number'
-                value={form.otherProperty}
-                onChange={set('otherProperty')}
-                placeholder='مثلاً ۰'
-                className={inputClass}
-              />
+              <AmountInput value={form.otherProperty} onChange={set('otherProperty')} placeholder='مثلاً ۰' />
             </div>
             <div>
               <label className={labelClass}>ارزش خودرو (میلیون تومان)</label>
-              <input type='number' value={form.car} onChange={set('car')} placeholder='مثلاً ۵۰۰' className={inputClass} />
+              <AmountInput value={form.car} onChange={set('car')} placeholder='مثلاً ۵۰۰' />
             </div>
             <div className='sm:col-span-2'>
               <label className={labelClass}>سایر سرمایه‌گذاری‌ها (میلیون تومان) — سهام، ارز دیجیتال و ...</label>
-              <input
-                type='number'
-                value={form.otherInvestments}
-                onChange={set('otherInvestments')}
-                placeholder='مثلاً ۰'
-                className={inputClass}
-              />
+              <AmountInput value={form.otherInvestments} onChange={set('otherInvestments')} placeholder='مثلاً ۰' />
             </div>
           </div>
         )}
@@ -349,25 +275,13 @@ const FinancePage = () => {
           <div className='flex flex-col gap-4'>
             <div>
               <label className={labelClass}>اقساط بدهی فعلی در ماه (میلیون تومان) — وام، چک و ...</label>
-              <input
-                type='number'
-                value={form.existingDebtPayments}
-                onChange={set('existingDebtPayments')}
-                placeholder='مثلاً ۱۰'
-                className={inputClass}
-              />
+              <AmountInput value={form.existingDebtPayments} onChange={set('existingDebtPayments')} placeholder='مثلاً ۱۰' />
             </div>
             <div>
               <label className={labelClass}>
                 هزینه‌های ماهانه زندگی (میلیون تومان) — خوراک، حمل‌ونقل، قبوض و ...، بدون اجاره
               </label>
-              <input
-                type='number'
-                value={form.monthlyExpenses}
-                onChange={set('monthlyExpenses')}
-                placeholder='مثلاً ۱۵'
-                className={inputClass}
-              />
+              <AmountInput value={form.monthlyExpenses} onChange={set('monthlyExpenses')} placeholder='مثلاً ۱۵' />
             </div>
             <label className='flex items-center gap-2 text-sm text-gray-600'>
               <input type='checkbox' checked={form.isRentingNow} onChange={set('isRentingNow')} />
@@ -376,13 +290,7 @@ const FinancePage = () => {
             {form.isRentingNow && (
               <div>
                 <label className={labelClass}>اجاره فعلی (میلیون تومان در ماه)</label>
-                <input
-                  type='number'
-                  value={form.currentRent}
-                  onChange={set('currentRent')}
-                  placeholder='مثلاً ۲۰'
-                  className={inputClass}
-                />
+                <AmountInput value={form.currentRent} onChange={set('currentRent')} placeholder='مثلاً ۲۰' />
               </div>
             )}
           </div>
@@ -414,29 +322,27 @@ const FinancePage = () => {
             {(form.goalType === 'buy' || form.goalType === 'undecided') && (
               <div>
                 <label className={labelClass}>قیمت تقریبی خانه‌ی مدنظر (میلیون تومان)</label>
-                <input
-                  type='number'
-                  value={form.targetPrice}
-                  onChange={set('targetPrice')}
-                  placeholder='مثلاً ۳۰۰۰'
-                  className={inputClass}
-                />
+                <AmountInput value={form.targetPrice} onChange={set('targetPrice')} placeholder='مثلاً ۳۰۰۰' />
               </div>
             )}
             <div>
               <label className={labelClass}>افق زمانی (چند سال دیگر)</label>
-              <input type='number' value={form.timelineYears} onChange={set('timelineYears')} className={inputClass} />
+              <AmountInput value={form.timelineYears} onChange={set('timelineYears')} placeholder='مثلاً ۳' />
             </div>
+            {(form.goalType === 'buy' || form.goalType === 'undecided') && (
+              <div>
+                <label className={labelClass}>رشد سالانه‌ی قیمت مسکن به نظر شما (درصد، اختیاری)</label>
+                <AmountInput value={form.priceGrowth} onChange={set('priceGrowth')} placeholder='مثلاً ۳۰' />
+                <p className='text-[11px] text-gray-400 mt-1'>
+                  اگر خالی بگذارید، قیمت خانه ثابت فرض می‌شود — در بازاری که قیمت‌ها هر سال بالا می‌رود، زمان
+                  واقعی رسیدن به خرید بیشتر خواهد بود.
+                </p>
+              </div>
+            )}
             {form.maritalStatus === 'about_to_marry' && (
               <div>
                 <label className={labelClass}>هزینه تخمینی ازدواج (میلیون تومان، اختیاری)</label>
-                <input
-                  type='number'
-                  value={form.weddingCost}
-                  onChange={set('weddingCost')}
-                  placeholder='مثلاً ۵۰۰'
-                  className={inputClass}
-                />
+                <AmountInput value={form.weddingCost} onChange={set('weddingCost')} placeholder='مثلاً ۵۰۰' />
               </div>
             )}
           </div>
@@ -459,20 +365,63 @@ const FinancePage = () => {
               ))}
             </div>
 
+            {summary.monthlySavingsCapacity <= 0 && (
+              <p className='bg-red-50 text-red-700 text-xs rounded-lg p-3'>
+                با این ارقام، هزینه‌های ماهانه‌ی شما از درآمدتان بیشتر یا با آن برابر است؛ پیش از هر برنامه‌ای برای خرید یا
+                رهن، کم‌کردن هزینه‌ها یا افزایش درآمد در اولویت است.
+              </p>
+            )}
+            {summary.weddingCost > 0 && (
+              <p className='text-xs text-gray-500'>
+                {fmtToman(summary.weddingCost)} برای هزینه‌ی ازدواج از دارایی نقد کنار گذاشته شد؛ نقدینگی قابل استفاده
+                برای مسکن: {fmtToman(summary.liquidAssets)}.
+              </p>
+            )}
+
             {(form.goalType === 'buy' || form.goalType === 'undecided') && summary.targetPrice > 0 && (
-              <div className='bg-blue-50 rounded-lg p-4'>
-                <h3 className='font-bold text-gray-800 mb-2 text-sm'>سناریوی خرید</h3>
-                <p className='text-xs text-gray-600 mb-1'>
-                  سقف تقریبی تسهیلات قابل دریافت: {fmtToman(summary.buyScenario.estimatedLoanAvailable)}
+              <div className='bg-blue-50 rounded-lg p-4 text-xs text-gray-700 flex flex-col gap-1.5'>
+                <h3 className='font-bold text-gray-800 text-sm'>سناریوی خرید (وام اوراق تسه، ارقام {LOAN_TERMS_AS_OF})</h3>
+                <p>مبلغ وام: {fmtToman(summary.buy.loanAmount)} — سقف وام شما {fmtToman(summary.buy.ceiling)}</p>
+                <p>پیش‌پرداخت نقدی: {fmtToman(summary.buy.downPayment)}</p>
+                <p>
+                  هزینه‌ی خرید اوراق تسه: حدود {fmtToman(summary.buy.bondCost)} (قیمت اوراق روزانه تغییر می‌کند)
                 </p>
-                <p className='text-xs text-gray-600 mb-1'>
-                  پیش‌پرداخت نقدی مورد نیاز: {fmtToman(summary.buyScenario.downPaymentNeeded)}
+                <p className='font-bold'>کل پول نقد لازم: {fmtToman(summary.buy.cashNeeded)}</p>
+                <p>
+                  قسط ماهانه: حدود {fmtToman(summary.buy.installment)} ({pct(summary.buy.installmentShare)} درآمد خانوار،
+                  با سود {fa(TSE_RATE * 100, 1)}٪ و بازپرداخت {fa(TSE_YEARS)} ساله)
                 </p>
-                <p className='text-xs text-gray-600'>
-                  {summary.buyScenario.monthsToSaveDownPayment === Infinity
-                    ? 'با توان پس‌انداز فعلی، رسیدن به این پیش‌پرداخت در بازه معقول مشخص نیست'
-                    : `با روند فعلی پس‌انداز، حدود ${Math.ceil(summary.buyScenario.monthsToSaveDownPayment)} ماه دیگر لازم است`}
+                <p className={summary.buy.fitsHousingRule && summary.buy.fitsTotalDebtRule ? 'text-green-700' : 'text-red-700'}>
+                  {summary.buy.fitsHousingRule && summary.buy.fitsTotalDebtRule
+                    ? 'این قسط در محدوده‌ی توصیه‌شده (حداکثر ۲۸٪ درآمد برای مسکن و ۳۶٪ برای کل بدهی‌ها) است.'
+                    : !summary.buy.fitsHousingRule
+                    ? `این قسط از سقف توصیه‌شده‌ی ${fmtToman(summary.dti.maxRecommendedHousingPayment)} (۲۸٪ درآمد) بیشتر است و فشار زیادی به بودجه می‌آورد.`
+                    : 'قسط مسکن به‌تنهایی قابل تحمل است، اما همراه با اقساط فعلی از ۳۶٪ درآمد بیشتر می‌شود.'}
                 </p>
+                <p>بعد از خرید، از درآمد ماهانه پس از هزینه‌ها و اقساط، حدود {fmtToman(summary.buy.monthlyLeftAfterBuying)} باقی می‌ماند.</p>
+                <p className='font-semibold'>
+                  {summary.buy.alreadyAffordable
+                    ? 'همین حالا پول نقد کافی برای پیش‌پرداخت و اوراق را دارید.'
+                    : summary.buy.monthsToAfford == null
+                    ? 'با توان پس‌انداز فعلی، رسیدن به این مبلغ در ۳۰ سال آینده ممکن نیست.'
+                    : `با روند فعلی پس‌انداز${summary.buy.annualGrowth ? ` و رشد سالانه‌ی ${fa(summary.buy.annualGrowth * 100)}٪ قیمت` : ''}، حدود ${fa(Math.ceil(summary.buy.monthsToAfford))} ماه (${fa(summary.buy.monthsToAfford / 12, 1)} سال) تا رسیدن به پول نقد لازم فاصله دارید — ${summary.buy.withinTimeline ? 'یعنی در افق زمانی که تعیین کرده‌اید.' : 'یعنی بیشتر از افق زمانی که تعیین کرده‌اید.'}`}
+                </p>
+              </div>
+            )}
+
+            {(form.goalType === 'rent' || form.goalType === 'undecided') && (
+              <div className='bg-amber-50 rounded-lg p-4 text-xs text-gray-700 flex flex-col gap-1.5'>
+                <h3 className='font-bold text-gray-800 text-sm'>سناریوی اجاره (رهن و اجاره)</h3>
+                <p>حداکثر اجاره‌ی ماهانه‌ی توصیه‌شده (۳۰٪ درآمد): {fmtToman(summary.rent.maxRent)}</p>
+                <p>حداکثر رهن با نقدینگی فعلی: {fmtToman(summary.rent.maxDeposit)}</p>
+                <p>
+                  با قاعده‌ی رایج تبدیل رهن به اجاره ({fa(RAHN_RATE * 100)}٪ در ماه)، می‌توانید دنبال خانه‌ای باشید
+                  که «معادل اجاره‌ی» آن (اجاره + ۳٪ رهن) حداکثر <b>{fmtToman(summary.rent.maxRentEquivalent)}</b> در ماه
+                  باشد — مثلاً با گذاشتن همه‌ی نقدینگی به‌عنوان رهن و پرداخت {fmtToman(summary.rent.maxRent)} اجاره.
+                </p>
+                <Link href='/properties' className='text-blue-700 font-semibold hover:underline'>
+                  دیدن آگهی‌های اجاره و تحلیل قیمت منصفانه‌ی هر کدام ←
+                </Link>
               </div>
             )}
 

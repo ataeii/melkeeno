@@ -117,6 +117,11 @@ export default async function sitemap() {
   return [
     { url: DOMAIN, lastModified: new Date() },
     { url: `${DOMAIN}/articles`, lastModified: new Date() },
+    { url: `${DOMAIN}/articles/zaban-olgo`, lastModified: new Date() },
+    ...['housing-market', 'neighborhoods', 'architecture'].map((key) => ({
+      url: `${DOMAIN}/articles/section/${key}`,
+      lastModified: new Date(),
+    })),
     ...staticUrls,
     ...placeCategoryUrls,
     ...materialCategoryUrls,

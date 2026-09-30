@@ -5,6 +5,9 @@ import Article from '@/models/Article';
 import ArticleComments from '@/components/ArticleComments';
 import { FaArrowRight } from 'react-icons/fa';
 import { pageMeta, indexableRobots } from '@/lib/seo';
+import AuthorBox from '@/components/AuthorBox';
+import { authorPerson } from '@/lib/authors';
+import { sectionByKey, sectionOf } from '@/lib/articleSections';
 
 const DOMAIN = 'https://khanedade.ir';
 
@@ -117,6 +120,7 @@ const ArticlePage = async ({ params }) => {
   const article = await getArticle(params.slug);
   if (!article) notFound();
   const seriesNav = await getSeriesNav(article.slug);
+  const section = sectionByKey(sectionOf(article));
 
   const image = leadImage(article);
   const publisher = {
@@ -136,7 +140,7 @@ const ArticlePage = async ({ params }) => {
     mainEntityOfPage: { '@type': 'WebPage', '@id': `${DOMAIN}/articles/${article.slug}` },
     image: [image ? image : `${DOMAIN}/images/screen.jpg`],
     // Most articles are unsigned site content -- credit the site itself then.
-    author: article.author ? { '@type': 'Person', name: article.author } : { ...publisher },
+    author: article.author ? authorPerson(article.author, DOMAIN) : { ...publisher },
     publisher,
   };
 
@@ -148,8 +152,8 @@ const ArticlePage = async ({ params }) => {
         </div>
       )}
 
-      <Link href='/articles' className='text-blue-600 text-sm font-semibold inline-flex items-center gap-1 mb-4'>
-        <FaArrowRight /> بازگشت به مقالات
+      <Link href={section.href} className='text-blue-600 text-sm font-semibold inline-flex items-center gap-1 mb-4'>
+        <FaArrowRight /> {section.label}
       </Link>
 
       <div className='flex items-center gap-2 mb-3'>
@@ -168,6 +172,17 @@ const ArticlePage = async ({ params }) => {
           <Block key={i} block={block} />
         ))}
       </div>
+
+      {article.author && <AuthorBox name={article.author} />}
+
+      {article.slug.startsWith('zaban-olgo') && (
+        <Link
+          href='/articles/zaban-olgo'
+          className='mt-6 block text-center text-sm font-semibold text-blue-700 hover:underline'
+        >
+          فهرست همه‌ی الگوهای مجموعه‌ی «زبان الگو»
+        </Link>
+      )}
 
       {seriesNav && (seriesNav.prev || seriesNav.next) && (
         <div className='mt-8 pt-6 border-t border-gray-100 grid grid-cols-2 gap-3'>
