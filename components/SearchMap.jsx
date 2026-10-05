@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useMemo } from 'react';
 import Map, { Marker, Popup } from 'react-map-gl/maplibre';
 
 function formatPriceBubble(listing) {
@@ -16,6 +16,19 @@ function formatPrice(price) {
   if (price >= 1e6) return (price / 1e6).toFixed(0) + ' میلیون';
   return price.toLocaleString();
 }
+
+function listingPrice(l) {
+  const v = Number(l.listing_type === 'rent' ? l.rent : l.price);
+  return v > 0 ? v : null;
+}
+
+// Dark green (cheapest) -> dark red (priciest), blended through hue so midpoints stay vivid.
+function priceColor(t) {
+  const hue = 135 * (1 - t);
+  return `hsl(${hue.toFixed(0)}, 70%, 28%)`;
+}
+
+const NO_PRICE_COLOR = '#6b7280';
 
 const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, onMarkerHover }) => {
   const mapRef = useRef(null);
@@ -52,9 +65,29 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
     }
   }
 
-  const validListings = listings.filter(
-    (l) => l.lat && l.lng && !isNaN(parseFloat(l.lat)) && !isNaN(parseFloat(l.lng))
+  const validListings = useMemo(
+    () =>
+      listings.filter(
+        (l) => l.lat && l.lng && !isNaN(parseFloat(l.lat)) && !isNaN(parseFloat(l.lng))
+      ),
+    [listings]
   );
+
+  // Rank-based position (0 = cheapest, 1 = priciest) within each listing type,
+  // so a few outliers don't wash every other marker to the same shade.
+  const priceRank = useMemo(() => {
+    const ranks = {};
+    ['rent', 'sale'].forEach((type) => {
+      const group = validListings.filter(
+        (l) => (l.listing_type === 'rent' ? 'rent' : 'sale') === type && listingPrice(l)
+      );
+      const sorted = [...group].sort((a, b) => listingPrice(a) - listingPrice(b));
+      sorted.forEach((l, i) => {
+        ranks[l.token] = sorted.length > 1 ? i / (sorted.length - 1) : 0;
+      });
+    });
+    return ranks;
+  }, [validListings]);
 
   return (
     <Map
@@ -70,6 +103,8 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
       {validListings.map((listing) => {
         const isActive = activeToken === listing.token;
         const isHovered = hoveredToken === listing.token;
+        const baseColor =
+          priceRank[listing.token] != null ? priceColor(priceRank[listing.token]) : NO_PRICE_COLOR;
         return (
           <Marker
             key={listing.token}
@@ -85,7 +120,7 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
               onMouseEnter={() => onMarkerHover && onMarkerHover(listing.token)}
               onMouseLeave={() => onMarkerHover && onMarkerHover(null)}
               style={{
-                background: isActive ? '#f59e0b' : isHovered ? '#2563eb' : '#1e3a5f',
+                background: isActive ? '#f59e0b' : baseColor,
                 color: 'white',
                 padding: '8px 14px',
                 borderRadius: '20px',
@@ -95,7 +130,7 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
                 boxShadow: isActive
                   ? '0 4px 12px rgba(245,158,11,0.6)'
                   : isHovered
-                  ? '0 4px 12px rgba(37,99,235,0.6)'
+                  ? '0 4px 12px rgba(0,0,0,0.5)'
                   : '0 2px 8px rgba(0,0,0,0.3)',
                 border: '2px solid white',
                 whiteSpace: 'nowrap',
