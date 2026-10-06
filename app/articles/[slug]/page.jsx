@@ -81,6 +81,28 @@ export async function generateMetadata({ params }) {
   };
 }
 
+// Article text may contain [label](/internal/path) links. Only site-relative
+// paths are turned into links -- anything else stays plain text, so a stray
+// or malicious URL in an article body can never become an outbound link.
+const LINK_RE = /\[([^\]]+)\]\((\/[^)\s]*)\)/g;
+const renderInline = (text) => {
+  if (typeof text !== 'string' || !text.includes('](/')) return text;
+  const parts = [];
+  let last = 0;
+  let m;
+  while ((m = LINK_RE.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push(
+      <Link key={m.index} href={m[2]} className='text-blue-700 underline underline-offset-2 hover:text-blue-900'>
+        {m[1]}
+      </Link>
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+};
+
 const Block = ({ block }) => {
   if (block.type === 'heading') {
     return <h2 className='text-lg font-bold text-gray-800 mt-6 mb-2'>{block.text}</h2>;
@@ -89,7 +111,7 @@ const Block = ({ block }) => {
     return (
       <ul className='list-disc pr-5 space-y-1.5 text-gray-700 leading-relaxed mb-4'>
         {block.items.map((item, i) => (
-          <li key={i}>{item}</li>
+          <li key={i}>{renderInline(item)}</li>
         ))}
       </ul>
     );
@@ -113,7 +135,7 @@ const Block = ({ block }) => {
       </figure>
     );
   }
-  return <p className='text-gray-700 leading-loose mb-4'>{block.text}</p>;
+  return <p className='text-gray-700 leading-loose mb-4'>{renderInline(block.text)}</p>;
 };
 
 const ArticlePage = async ({ params }) => {
