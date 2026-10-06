@@ -1,6 +1,13 @@
-'use client';
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import connectDB from '@/config/database';
+import MaterialPrice from '@/models/MaterialPrice';
+import { pageMeta } from '@/lib/seo';
+
+// Server-rendered on purpose: this used to be a client component that fetched
+// prices after load, so the HTML a crawler first saw contained no prices at
+// all (~100 words) -- useless for a page about «قیمت روز». Prices are read
+// straight from Mongo per request; they only change once a day.
+export const dynamic = 'force-dynamic';
 
 const CATEGORY_LABELS = {
   cement: 'سیمان',
@@ -32,23 +39,34 @@ const formatDate = (iso) => {
 
 const formatPrice = (price) => (price > 0 ? `${price.toLocaleString('fa-IR')} تومان` : 'قیمت موجود نیست');
 
-const MaterialsPage = () => {
-  const [items, setItems] = useState([]);
-  const [updatedAt, setUpdatedAt] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+async function loadPrices() {
+  try {
+    await connectDB();
+    const items = await MaterialPrice.find({}).sort({ category: 1, price: -1 }).lean();
+    return { items: JSON.parse(JSON.stringify(items)), updatedAt: items.length ? items[0].fetchedAt : null, error: false };
+  } catch (e) {
+    console.log(e);
+    return { items: [], updatedAt: null, error: true };
+  }
+}
 
-  useEffect(() => {
-    fetch('/api/material-prices')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) throw new Error(data.error);
-        setItems(data.items || []);
-        setUpdatedAt(data.updatedAt);
-      })
-      .catch(() => setError('خطا در دریافت قیمت مصالح'))
-      .finally(() => setLoading(false));
-  }, []);
+const shortDate = (iso) =>
+  iso ? new Date(iso).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+
+// «قیمت روز» searches expect a date: put the last update in the title.
+export async function generateMetadata() {
+  const { updatedAt } = await loadPrices();
+  const date = shortDate(updatedAt);
+  return pageMeta({
+    title: `قیمت روز مصالح ساختمانی${date ? ` — ${date}` : ''}: سیمان، میلگرد، آجر، بلوک و گچ | خانه‌داده`,
+    description: `قیمت امروز مصالح ساختمانی در تهران${date ? ` (به‌روزرسانی ${date})` : ''}: سیمان، میلگرد، آجر، بلوک و گچ، همراه با مقایسه‌ی قیمت فروشندگان آنلاین.`,
+    path: '/materials',
+  });
+}
+
+const MaterialsPage = async () => {
+  const { items, updatedAt, error } = await loadPrices();
+  const loading = false;
 
   const grouped = CATEGORY_ORDER.map((cat) => ({
     category: cat,

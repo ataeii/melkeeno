@@ -164,7 +164,11 @@ const FamilyFinderMap = ({
       })}
 
       {hoveredHouse && (
-        <Marker longitude={hoveredHouse.lng} latitude={hoveredHouse.lat} anchor='bottom'>
+        // pointerEvents:none on the Marker itself (not just its child): this pin is
+        // drawn exactly over the hovered dot, so if it caught the mouse the dot
+        // would get a mouseleave, the pin would vanish, the dot would get a
+        // mouseenter again -- an endless pop-in/pop-out flicker.
+        <Marker longitude={hoveredHouse.lng} latitude={hoveredHouse.lat} anchor='bottom' style={{ pointerEvents: 'none' }}>
           <div
             style={{
               ...pinStyle('#d97706'),
@@ -281,7 +285,7 @@ const FamilyFinderMap = ({
           attribute, and shared between hovering the dot itself and hovering
           the matching row in the list panel (see hoveredNearbySchoolId). */}
       {tooltipSchool && (
-        <Marker longitude={tooltipSchool.lng} latitude={tooltipSchool.lat} anchor='bottom' offset={[0, -14]}>
+        <Marker longitude={tooltipSchool.lng} latitude={tooltipSchool.lat} anchor='bottom' offset={[0, -14]} style={{ pointerEvents: 'none' }}>
           <div
             style={{
               background: 'white',
