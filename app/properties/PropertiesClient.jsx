@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import PropertyCard from '@/components/PropertyCard';
 import { fetchListings, fetchMeta, nearbyServices } from '@/lib/api';
@@ -15,12 +15,33 @@ const FILTER_DEFAULTS = {
   min_price: '',
   max_price: '',
   amenities: [],
+  // Price vs. market ('' | 'below' | 'fair' | 'above'), from the pricing engine's
+  // per-listing verdict. `sure` keeps only medium/high-confidence verdicts --
+  // most verdicts are low-confidence, and a "below market" list made of those
+  // is mostly noise.
+  market: '',
+  sure: true,
   sort: 'price_asc',
 };
 
 // Keys that count toward the "فیلترها (N)" badge -- listing_type and sort
 // are always "set" to something by design, so they don't count as refinements.
-const REFINEMENT_KEYS = ['district', 'rooms', 'min_area', 'min_price', 'max_price', 'amenities'];
+const REFINEMENT_KEYS = ['district', 'rooms', 'min_area', 'min_price', 'max_price', 'amenities', 'market'];
+
+// Verdict / typical-price / confidence fields differ for buy vs rent listings.
+const MARKET_FIELDS = {
+  buy: { value: 'price', typical: 'price_range_typical', verdict: 'price_verdict', confidence: 'price_confidence' },
+  rent: { value: 'rent', typical: 'rent_range_typical', verdict: 'rent_verdict', confidence: 'rent_confidence' },
+};
+const VERDICT_OF = { below: 'below_market', fair: 'fair', above: 'above_market' };
+
+// Real gap between asking and typical price (negative = cheaper than market).
+// The engine's own verdict_pct is capped at +-15%, so it can't rank deals.
+const marketGap = (listing, f) => {
+  const value = Number(listing[f.value]);
+  const typical = Number(listing[f.typical]);
+  return value > 0 && typical > 0 ? (value - typical) / typical : null;
+};
 
 const AMENITY_OPTIONS = [
   { key: 'parking', label: 'پارکینگ' },
@@ -76,7 +97,7 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
       if (filters.min_price) params.min_price = filters.min_price;
       if (filters.max_price) params.max_price = filters.max_price;
       if (filters.amenities.length > 0) params.amenities = filters.amenities.join(',');
-      if (filters.sort) params.sort = filters.sort;
+      if (filters.sort && filters.sort !== 'discount') params.sort = filters.sort;
 
       const data = await fetchListings(params);
       setListings(Array.isArray(data) ? data : []);
@@ -93,7 +114,33 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
     loadListings();
   }, [loadListings]);
 
-  const activeListing = listings.find((l) => l.token === activeToken) || null;
+  // Market-price filter + discount sort run on the loaded listings (the verdicts
+  // are already on every row), so no backend change is needed.
+  const shown = useMemo(() => {
+    const f = MARKET_FIELDS[filters.listing_type];
+    if (!f) return listings;
+    let rows = listings;
+    if (filters.market) {
+      rows = rows.filter(
+        (l) =>
+          l[f.verdict] === VERDICT_OF[filters.market] &&
+          (!filters.sure || ['medium', 'high'].includes(l[f.confidence]))
+      );
+    }
+    if (filters.sort === 'discount') {
+      rows = [...rows].sort((a, b) => {
+        const ga = marketGap(a, f);
+        const gb = marketGap(b, f);
+        if (ga == null && gb == null) return 0;
+        if (ga == null) return 1;
+        if (gb == null) return -1;
+        return ga - gb;
+      });
+    }
+    return rows;
+  }, [listings, filters.listing_type, filters.market, filters.sure, filters.sort]);
+
+  const activeListing = shown.find((l) => l.token === activeToken) || null;
 
   useEffect(() => {
     if (!activeListing || !activeListing.lat || !activeListing.lng) {
@@ -118,7 +165,15 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
   }, [activeListing?.lat, activeListing?.lng]);
 
   const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value };
+      // Short-term rentals have no market verdict, so drop the options that need one.
+      if (key === 'listing_type' && value === 'short_term') {
+        next.market = '';
+        if (next.sort === 'discount') next.sort = 'price_asc';
+      }
+      return next;
+    });
   };
 
   const toggleAmenity = (key) => {
@@ -182,6 +237,7 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
             <option value='price_asc'>ارزان‌ترین</option>
             <option value='price_desc'>گران‌ترین</option>
             <option value='area_desc'>بزرگ‌ترین</option>
+            {filters.listing_type !== 'short_term' && <option value='discount'>بیشترین تخفیف نسبت به بازار</option>}
           </select>
 
           {/* فیلترها (باز/بسته) */}
@@ -210,7 +266,7 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
 
           {/* Count badge */}
           <span className='mr-auto bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1 rounded-full'>
-            {loading ? '...' : `${listings.length} آگهی`}
+            {loading ? '...' : `${shown.length} آگهی`}
           </span>
         </div>
 
@@ -280,6 +336,39 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
               <option value='50000000000'>تا ۵۰ میلیارد</option>
             </select>
 
+            {/* قیمت نسبت به بازار -- only buy/rent listings have a verdict */}
+            {filters.listing_type !== 'short_term' && (
+              <div className='w-full flex flex-wrap items-center gap-2'>
+                <select
+                  className={selectClass}
+                  value={filters.market}
+                  onChange={(e) => handleFilterChange('market', e.target.value)}
+                >
+                  <option value=''>قیمت نسبت به بازار: همه</option>
+                  <option value='below'>زیر قیمت بازار</option>
+                  <option value='fair'>نزدیک قیمت بازار</option>
+                  <option value='above'>بالاتر از قیمت بازار</option>
+                </select>
+                {filters.market && (
+                  <label className='flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer'>
+                    <input
+                      type='checkbox'
+                      checked={filters.sure}
+                      onChange={(e) => handleFilterChange('sure', e.target.checked)}
+                    />
+                    فقط برآوردهای مطمئن‌تر (با آگهی‌های مشابه بیشتر)
+                  </label>
+                )}
+                {filters.market === 'below' && (
+                  <p className='w-full text-[11px] text-gray-400 leading-relaxed'>
+                    برآورد بازار از مقایسه با آگهی‌های مشابه همان محدوده به دست می‌آید. قیمتی که خیلی پایین‌تر از بازار
+                    است همیشه فرصت نیست؛ ممکن است پیش‌فروش، ملک نیازمند بازسازی یا اشتباه آگهی باشد. پیش از هر اقدامی
+                    آگهی را بررسی کنید.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* امکانات */}
             <div className='w-full flex flex-wrap items-center gap-2 mt-1'>
               <span className='text-xs text-gray-400'>امکانات:</span>
@@ -336,7 +425,7 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
           <a href='/properties/rent' className='block px-3 text-xs text-blue-700 font-semibold hover:underline'>
             اجاره آپارتمان به تفکیک محله ←
           </a>
-          {loading && listings.length === 0 && (
+          {loading && shown.length === 0 && (
             <div className='flex items-center justify-center h-32 text-gray-400'>
               <span>در حال بارگذاری...</span>
             </div>
@@ -346,13 +435,13 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
               <span>{error}</span>
             </div>
           )}
-          {!loading && !error && listings.length === 0 && (
+          {!loading && !error && shown.length === 0 && (
             <div className='flex items-center justify-center h-32 text-gray-400'>
               <span>آگهی‌ای یافت نشد</span>
             </div>
           )}
           <div className='p-3 flex flex-col gap-3'>
-            {listings.slice(0, visibleCount).map((listing) => (
+            {shown.slice(0, visibleCount).map((listing) => (
               <div
                 key={listing.token}
                 onMouseEnter={() => setHoveredToken(listing.token)}
@@ -371,13 +460,13 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
                 />
               </div>
             ))}
-            {listings.length > visibleCount && (
+            {shown.length > visibleCount && (
               <button
                 type='button'
                 onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
                 className='mx-auto my-2 bg-white border border-gray-200 hover:border-blue-500 text-blue-600 text-sm font-semibold px-5 py-2.5 rounded-lg'
               >
-                نمایش آگهی‌های بیشتر ({(listings.length - visibleCount).toLocaleString('fa-IR')} آگهی دیگر)
+                نمایش آگهی‌های بیشتر ({(shown.length - visibleCount).toLocaleString('fa-IR')} آگهی دیگر)
               </button>
             )}
           </div>
@@ -386,7 +475,7 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
         {/* Right panel: map */}
         <div className={`${mobileView === 'list' ? 'hidden' : 'block'} md:block w-full md:flex-1 relative`}>
           <SearchMap
-            listings={listings}
+            listings={shown}
             activeToken={activeToken}
             onMarkerClick={handleMarkerClick}
             hoveredToken={hoveredToken}

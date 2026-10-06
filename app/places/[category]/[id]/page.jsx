@@ -10,6 +10,7 @@ import {
   canonicalTwin,
   cleanText,
   displayName,
+  formatDistance,
   landmarkOf,
   placeIntro,
   placeTitle,
@@ -42,9 +43,25 @@ export async function generateMetadata({ params }) {
   const data = await load(params);
   if (!data) notFound();
   const { place, context, vicinity, landmark } = data;
-  const title = `${placeTitle(params.category, place, vicinity, landmark)} | خانه‌داده`;
+  // Search Console: hospital searches are overwhelmingly «نزدیک‌ترین مترو به
+  // بیمارستان X», so hospital titles/descriptions lead with that phrase and the
+  // nearest station + straight-line distance (the same data the page body shows).
+  // Libraries are looked up by plain name, so they keep the name-first title.
+  const metro =
+    params.category === 'hospital'
+      ? (context?.metro || []).reduce((best, m) => (!best || m.distance_km < best.distance_km ? m : best), null)
+      : null;
+  // A few records are named just «بیمارستان»; add the neighbourhood so the title
+  // says which one it is.
+  const rawName = displayName(params.category, place, vicinity, landmark);
+  const hospitalName = rawName.trim() === PLACE_PAGE_CATEGORIES[params.category]?.noun && vicinity ? `${rawName.trim()} ${vicinity}` : rawName;
+  const metroPhrase = metro ? `ایستگاه ${metro.name} (${formatDistance(metro.distance_km)})` : null;
+  const title = metro
+    ? `نزدیک‌ترین مترو به ${hospitalName}: ${metroPhrase} | خانه‌داده`
+    : `${placeTitle(params.category, place, vicinity, landmark)} | خانه‌داده`;
   const address = cleanText(place.address);
   const bits = [
+    metro ? `نزدیک‌ترین ایستگاه مترو به ${hospitalName}: ${metroPhrase}، به‌صورت خط مستقیم` : null,
     `${displayName(params.category, place, vicinity, landmark)}${vicinity ? ` در محدوده‌ی ${vicinity}` : ''}`,
     address ? `نشانی: ${address}` : null,
     context?.prices?.buy_ppm2_median ? 'قیمت مسکن و آگهی‌های خرید و اجاره‌ی اطراف' : 'امکانات اطراف',
