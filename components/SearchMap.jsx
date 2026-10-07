@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState, useCallback, useMemo } from 'react';
 import Map, { Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
+import { houseSummary } from '@/lib/houseSummary';
 
 function formatPriceBubble(listing) {
   const price = listing.listing_type === 'rent' ? listing.rent : listing.price;
@@ -30,12 +31,18 @@ function priceColor(t) {
 
 const NO_PRICE_COLOR = '#6b7280';
 
-// "vs market" colouring uses the pricing engine's verdict, but only where the
-// estimate is reasonably reliable (medium/high confidence) -- a low-confidence
-// verdict is mostly noise, so those dots stay neutral grey.
-const MARKET_COLORS = { below_market: '#15803d', fair: '#ca8a04', above_market: '#b91c1c' };
-const marketColor = (l) =>
-  (['medium', 'high'].includes(l.confidence) && MARKET_COLORS[l.verdict]) || NO_PRICE_COLOR;
+// "vs market" colouring: how far the asking price is from the typical price of comparable
+// listings in the SAME neighbourhood (gap = (asking - typical) / typical). Same dark-green ->
+// dark-red scale as the price mode, but centred on "in line with its neighbourhood" (gap 0),
+// saturating at -30% / +30%. Rich areas are therefore not red just for being rich.
+// Dots whose estimate rests on few comparables (low confidence) are drawn fainter, not hidden.
+const GAP_SPAN = 0.3;
+const marketColor = (l) => {
+  if (l.gap == null) return NO_PRICE_COLOR;
+  const t = Math.max(0, Math.min(1, (l.gap + GAP_SPAN) / (2 * GAP_SPAN)));
+  return priceColor(t);
+};
+const dotOpacity = (l, mode) => (mode === 'market' && !['medium', 'high'].includes(l.confidence) ? 0.4 : 0.95);
 
 // `points` are minimal map points (token, lat, lng, type, price, rent) for every
 // match; `activeListing` is the full listing (a loaded card, or fetched on demand
@@ -123,6 +130,7 @@ const SearchMap = ({
         properties: {
           token: l.token,
           c: colorFor(l),
+          o: dotOpacity(l, colorMode),
           label: formatPriceBubble(l),
         },
       })),
@@ -169,9 +177,81 @@ const SearchMap = ({
   // Bubble (price pill) for the listing that is hovered/active. pointer-events:none
   // so it never steals the mouse from the dot underneath it (that caused a
   // pop-in/pop-out flicker once before).
+  // Hover = an info card like the neighbourhood-suggestion page's:
+  //   [فروش/اجاره]  ۱۳۵ متر در نیاوران  /  ۷۵ میلیارد تومان
+  // with a ring on the dot. It flips below the dot near the top edge and slides inward
+  // near the left/right edges so it is never cut off.
+  const hoverCard = (listing, token) => {
+    const sum = houseSummary(listing);
+    const map = mapRef.current?.getMap?.();
+    const pt = map?.project?.([parseFloat(listing.lng), parseFloat(listing.lat)]);
+    const width = map?.getContainer?.()?.clientWidth;
+    const flip = pt && pt.y < 130;
+    const shiftX = pt && width ? (pt.x > width - 130 ? '-85%' : pt.x < 130 ? '-15%' : '-50%') : '-50%';
+    const isRent = sum.kind === 'rent';
+    return (
+      <Marker
+        key={`hover-${token}`}
+        longitude={parseFloat(listing.lng)}
+        latitude={parseFloat(listing.lat)}
+        anchor='center'
+        style={{ pointerEvents: 'none', zIndex: 11 }}
+      >
+        <div style={{ position: 'relative', width: 20, height: 20 }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              border: '3px solid #f59e0b',
+              background: 'rgba(255,255,255,0.35)',
+              boxShadow: '0 0 0 2px white, 0 2px 8px rgba(0,0,0,0.35)',
+            }}
+          />
+          <div
+            dir='rtl'
+            style={{
+              position: 'absolute',
+              left: '50%',
+              transform: `translateX(${shiftX})`,
+              ...(flip ? { top: 'calc(100% + 10px)' } : { bottom: 'calc(100% + 10px)' }),
+              background: 'white',
+              color: '#1f2937',
+              border: '1px solid #e5e7eb',
+              borderRadius: '10px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+              padding: '7px 11px',
+              whiteSpace: 'nowrap',
+              textAlign: 'center',
+              fontFamily: 'Vazirmatn, sans-serif',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                color: 'white',
+                background: isRent ? '#16a34a' : '#1d4ed8',
+                borderRadius: '999px',
+                padding: '1px 8px',
+                marginBottom: '3px',
+              }}
+            >
+              {isRent ? 'اجاره' : 'فروش'}
+            </span>
+            <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{sum.label}</div>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309', marginTop: '2px' }}>{sum.price}</div>
+          </div>
+        </div>
+      </Marker>
+    );
+  };
+
   const bubbleFor = (token, isActive) => {
     const listing = pointByToken[token];
     if (!listing) return null;
+    if (!isActive) return hoverCard(listing, token);
     const baseColor = colorFor(listing);
     return (
       <Marker
@@ -226,7 +306,7 @@ const SearchMap = ({
             'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3, 12, 5, 15, 9],
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 1.5,
-            'circle-opacity': 0.95,
+            'circle-opacity': ['get', 'o'],
           }}
         />
         <Layer

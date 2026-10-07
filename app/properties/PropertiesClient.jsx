@@ -68,7 +68,9 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
   const [points, setPoints] = useState([]);
   const [activeDetail, setActiveDetail] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [colorMode, setColorMode] = useState('price'); // map dot colours: 'price' | 'market'
+  // Map dot colours: 'market' = price relative to the neighbourhood (default: rich areas aren't red
+  // just for being rich), 'price' = absolute cheapest -> priciest.
+  const [colorMode, setColorMode] = useState('market');
   const requestId = useRef(0);
   const [districts, setDistricts] = useState(initialDistricts);
   const [activeToken, setActiveToken] = useState(null);
@@ -528,7 +530,7 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
                 <span className='text-gray-400'>رنگ نقطه‌ها:</span>
                 {[
                   { key: 'price', label: 'قیمت' },
-                  { key: 'market', label: 'نسبت به بازار' },
+                  { key: 'market', label: 'نسبت به محله' },
                 ].map(({ key, label }) => (
                   <button
                     key={key}
@@ -546,11 +548,15 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
               </div>
             )}
             {colorMode === 'market' && filters.listing_type !== 'short_term' ? (
-              <div className='flex items-center gap-2.5 flex-wrap'>
-                <span className='flex items-center gap-1'><i className='inline-block w-2.5 h-2.5 rounded-full' style={{ background: '#15803d' }} />زیر بازار</span>
-                <span className='flex items-center gap-1'><i className='inline-block w-2.5 h-2.5 rounded-full' style={{ background: '#ca8a04' }} />نزدیک بازار</span>
-                <span className='flex items-center gap-1'><i className='inline-block w-2.5 h-2.5 rounded-full' style={{ background: '#b91c1c' }} />بالاتر از بازار</span>
-                <span className='flex items-center gap-1'><i className='inline-block w-2.5 h-2.5 rounded-full' style={{ background: '#6b7280' }} />برآورد مطمئن ندارد</span>
+              <div>
+                <div className='flex items-center gap-2'>
+                  <span>ارزان‌تر از محله</span>
+                  <i className='inline-block h-2 w-24 rounded' style={{ background: 'linear-gradient(to left, hsl(0,70%,28%), hsl(68,70%,28%), hsl(135,70%,28%))' }} />
+                  <span>گران‌تر از محله</span>
+                </div>
+                <p className='mt-1 text-gray-400 max-w-[250px] leading-relaxed'>
+                  رنگ نشان می‌دهد قیمت هر ملک نسبت به آگهی‌های مشابه همان محله چقدر کمتر یا بیشتر است. نقطه‌های کم‌رنگ برآورد کم‌اطمینان دارند؛ خاکستری یعنی برآورد نداریم.
+                </p>
               </div>
             ) : (
               <div className='flex items-center gap-2'>
@@ -561,7 +567,7 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
             )}
             {colorMode === 'price' && filters.listing_type !== 'short_term' && (
               <p className='mt-1 text-gray-400 max-w-[230px] leading-relaxed'>
-                رنگ بر اساس قیمت کل است؛ محله‌های گران طبیعتاً قرمزترند. برای دیدن ارزان یا گران بودن نسبت به همان محله، «نسبت به بازار» را بزنید.
+                رنگ بر اساس قیمت کل است؛ محله‌های گران طبیعتاً قرمزترند. برای دیدن ارزان یا گران بودن هر ملک نسبت به همان محله، «نسبت به محله» را بزنید.
               </p>
             )}
           </div>
