@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { fetchListings } from '@/lib/api';
 import { FaTrash } from 'react-icons/fa';
 import NearbyPlacesPanel from '@/components/NearbyPlacesPanel';
+import { houseSummary } from '@/lib/houseSummary';
 
 const FamilyFinderMap = dynamic(() => import('@/components/FamilyFinderMap'), { ssr: false });
 
@@ -67,7 +68,7 @@ const FamilyFinderPage = () => {
               {(selectedHouseToken ? houses.filter((h) => h.token === selectedHouseToken) : houses).map((h) => (
                 <div
                   key={h.token}
-                  onMouseEnter={() => setHoveredHouse({ lat: h.lat, lng: h.lng })}
+                  onMouseEnter={() => setHoveredHouse({ lat: h.lat, lng: h.lng, ...houseSummary(h) })}
                   onMouseLeave={() => setHoveredHouse(null)}
                   onClick={() => selectHouseFromList(h)}
                   className={`flex items-center gap-2 rounded-lg p-2 cursor-pointer transition-colors border ${

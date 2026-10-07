@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useEffect, useState } from 'react';
 import { Map, Marker, Source, Layer } from 'react-map-gl/maplibre';
+import { houseSummary } from '@/lib/houseSummary';
 
 const ROUTE_COLORS = ['#0052ab', '#c2410c', '#0f766e', '#7c3aed', '#be123c', '#a16207'];
 
@@ -163,23 +164,63 @@ const FamilyFinderMap = ({
         );
       })}
 
-      {hoveredHouse && (
-        // pointerEvents:none on the Marker itself (not just its child): this pin is
-        // drawn exactly over the hovered dot, so if it caught the mouse the dot
-        // would get a mouseleave, the pin would vanish, the dot would get a
-        // mouseenter again -- an endless pop-in/pop-out flicker.
-        <Marker longitude={hoveredHouse.lng} latitude={hoveredHouse.lat} anchor='bottom' style={{ pointerEvents: 'none' }}>
-          <div
-            style={{
-              ...pinStyle('#d97706'),
-              transform: 'scale(1.25)',
-              boxShadow: '0 4px 14px rgba(217,119,6,0.6)',
-            }}
+      {hoveredHouse && (() => {
+        // A bubble with what the house is ("۱۳۵ متر در نیاوران" / price) sits above the pin; if the
+        // house is near the top edge of the map it flips below instead so it isn't cut off.
+        const pt = mapRef.current?.getMap?.()?.project?.([hoveredHouse.lng, hoveredHouse.lat]);
+        const flip = pt && pt.y < 110;
+        return (
+          // pointerEvents:none on the Marker itself (not just its child): this pin is
+          // drawn exactly over the hovered dot, so if it caught the mouse the dot
+          // would get a mouseleave, the pin would vanish, the dot would get a
+          // mouseenter again -- an endless pop-in/pop-out flicker.
+          <Marker
+            longitude={hoveredHouse.lng}
+            latitude={hoveredHouse.lat}
+            anchor='bottom'
+            style={{ pointerEvents: 'none', zIndex: 30 }}
           >
-            🏠
-          </div>
-        </Marker>
-      )}
+            <div style={{ position: 'relative' }}>
+              {hoveredHouse.label && (
+                <div
+                  dir='rtl'
+                  style={{
+                    position: 'absolute',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    ...(flip ? { top: 'calc(100% + 10px)' } : { bottom: 'calc(100% + 10px)' }),
+                    background: 'white',
+                    color: '#1f2937',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '10px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                    padding: '7px 11px',
+                    whiteSpace: 'nowrap',
+                    textAlign: 'center',
+                    fontFamily: 'Vazirmatn, sans-serif',
+                  }}
+                >
+                  <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{hoveredHouse.label}</div>
+                  {hoveredHouse.price && (
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309', marginTop: '2px' }}>
+                      {hoveredHouse.price}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div
+                style={{
+                  ...pinStyle('#d97706'),
+                  transform: 'scale(1.25)',
+                  boxShadow: '0 4px 14px rgba(217,119,6,0.6)',
+                }}
+              >
+                🏠
+              </div>
+            </div>
+          </Marker>
+        );
+      })()}
 
       {house && (
         <Marker longitude={house.lng} latitude={house.lat} anchor='bottom'>
@@ -199,8 +240,8 @@ const FamilyFinderMap = ({
           }}
         >
           <div
-            title={h.title}
-            onMouseEnter={() => onHouseHover?.({ lat: h.lat, lng: h.lng })}
+            aria-label={h.title}
+            onMouseEnter={() => onHouseHover?.({ lat: h.lat, lng: h.lng, ...houseSummary(h) })}
             onMouseLeave={() => onHouseHover?.(null)}
             style={{
               width: 10,
