@@ -37,6 +37,21 @@ const AboutPage = () => {
         </div>
 
         <div>
+          <h2 className='text-base font-bold text-gray-800 mb-2'>پروژه‌ی دیگر ما</h2>
+          <p>
+            همین تیم یک پلتفرم کار آزاد (فریلنسری) برای عراق هم ساخته است:{' '}
+            <a
+              href='https://farasa-iq.com'
+              hrefLang='ar'
+              className='text-blue-600 hover:text-blue-700 font-semibold'
+            >
+              فراسة — منصة العمل الحر في العراق
+            </a>
+            ، جایی که فریلنسرها و کارفرماهای عراقی همدیگر را پیدا می‌کنند (سایت به زبان عربی است).
+          </p>
+        </div>
+
+        <div>
           <h2 className='text-base font-bold text-gray-800 mb-2'>در تماس باشید</h2>
           <p>
             اگر سوال، پیشنهاد، یا انتقادی دارید، خوشحال می‌شویم از شما بشنویم — از طریق{' '}
