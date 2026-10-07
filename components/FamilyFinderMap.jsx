@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { Map, Marker, Source, Layer } from 'react-map-gl/maplibre';
 import { houseSummary } from '@/lib/houseSummary';
 
@@ -67,6 +67,36 @@ const FamilyFinderMap = ({
   const mapRef = useRef(null);
   const [tooltipSchool, setTooltipSchool] = useState(null);
 
+  // All browsable houses are drawn as ONE circle layer (not one HTML <Marker> each): with
+  // thousands of houses, thousands of DOM markers make the page slow and the browser stops
+  // painting reliably. Hover/click go through the map's own feature picking instead.
+  const [houseCursor, setHouseCursor] = useState(false);
+  const hoveredToken = useRef(null);
+  const housesByToken = useMemo(() => {
+    const m = {};
+    allHouses.forEach((h) => {
+      m[h.token] = h;
+    });
+    return m;
+  }, [allHouses]);
+  const housesGeoJson = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: allHouses
+        .filter((h) => h.lat && h.lng)
+        .map((h) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [h.lng, h.lat] },
+          properties: { token: h.token },
+        })),
+    }),
+    [allHouses]
+  );
+  const pickHouse = (e) => {
+    const f = e.features?.find((x) => x.layer?.id === 'house-dots');
+    return f ? housesByToken[f.properties.token] : null;
+  };
+
   // Fit the view to whatever is currently being shown (routes + pins) so
   // short urban routes are actually visible following streets, instead of
   // sitting inside the default city-wide zoom where a 1-3km route looks
@@ -119,8 +149,32 @@ const FamilyFinderMap = ({
       onLoad={(e) => e.target.fitBounds(TEHRAN_BOUNDS, { padding: 20, duration: 0 })}
       style={{ width: '100%', height: '100%' }}
       mapStyle='https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
-      onClick={(e) => onMapClick?.(e.lngLat.lat, e.lngLat.lng)}
-      cursor={activeMode ? 'crosshair' : 'grab'}
+      interactiveLayerIds={allHouses.length > 0 ? ['house-dots'] : []}
+      onClick={(e) => {
+        const h = pickHouse(e);
+        if (h) {
+          onHouseClick?.(h);
+          return;
+        }
+        onMapClick?.(e.lngLat.lat, e.lngLat.lng);
+      }}
+      onMouseMove={(e) => {
+        const h = pickHouse(e);
+        const token = h ? h.token : null;
+        setHouseCursor(!!h);
+        if (token !== hoveredToken.current) {
+          hoveredToken.current = token;
+          onHouseHover?.(h ? { lat: h.lat, lng: h.lng, ...houseSummary(h) } : null);
+        }
+      }}
+      onMouseLeave={() => {
+        setHouseCursor(false);
+        if (hoveredToken.current !== null) {
+          hoveredToken.current = null;
+          onHouseHover?.(null);
+        }
+      }}
+      cursor={houseCursor ? 'pointer' : activeMode ? 'crosshair' : 'grab'}
     >
       {routes.map((r, i) => {
         const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
@@ -232,33 +286,21 @@ const FamilyFinderMap = ({
         </Marker>
       )}
 
-      {allHouses.map((h) => (
-        <Marker
-          key={`all-h-${h.token}`}
-          longitude={h.lng}
-          latitude={h.lat}
-          anchor='bottom'
-          onClick={(e) => {
-            e.originalEvent?.stopPropagation();
-            onHouseClick?.(h);
-          }}
-        >
-          <div
-            aria-label={h.title}
-            onMouseEnter={() => onHouseHover?.({ lat: h.lat, lng: h.lng, ...houseSummary(h) })}
-            onMouseLeave={() => onHouseHover?.(null)}
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: '#16a34a',
-              border: '1.5px solid white',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-              cursor: 'pointer',
+      {allHouses.length > 0 && (
+        <Source id='houses' type='geojson' data={housesGeoJson}>
+          <Layer
+            id='house-dots'
+            type='circle'
+            paint={{
+              'circle-color': '#16a34a',
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3.5, 13, 6, 16, 9],
+              'circle-stroke-color': '#ffffff',
+              'circle-stroke-width': 1.5,
+              'circle-opacity': 0.95,
             }}
           />
-        </Marker>
-      ))}
+        </Source>
+      )}
 
       {allSchools.map((s) => (
         <Marker

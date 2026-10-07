@@ -1,37 +1,95 @@
 'use client';
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { fetchListings } from '@/lib/api';
+import { fetchListingsPage, fetchListingPoints, fetchListing } from '@/lib/api';
 import { FaTrash } from 'react-icons/fa';
 import NearbyPlacesPanel from '@/components/NearbyPlacesPanel';
 import { houseSummary } from '@/lib/houseSummary';
 
 const FamilyFinderMap = dynamic(() => import('@/components/FamilyFinderMap'), { ssr: false });
 
-const formatToman = (n) => {
-  if (!n) return null;
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + ' میلیارد';
-  if (n >= 1e6) return (n / 1e6).toFixed(0) + ' میلیون';
-  return n.toLocaleString();
-};
+// The list loads a page at a time and the map draws lightweight points, instead of
+// downloading every listing (~5 MB, 15-20 s) up front.
+const PAGE_SIZE = 30;
 
 const FamilyFinderPage = () => {
   const [selectedHouseToken, setSelectedHouseToken] = useState(null);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [houseType, setHouseType] = useState('buy'); // sale and rent prices aren't comparable -> one list at a time
   const [houses, setHouses] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [points, setPoints] = useState([]);
   const [housesLoading, setHousesLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hoveredHouse, setHoveredHouse] = useState(null);
 
-  // Real houses to browse, loaded once — short-term/daily rentals are a
-  // separate product (see /properties), not permanent housing to live in
+  // Real houses to browse -- short-term/daily rentals are a separate product (see /properties),
+  // not permanent housing to live in. First page of the list + a point for every house on the map.
   useEffect(() => {
-    fetchListings({ listing_type: 'buy,rent' })
-      .then((data) => setHouses(Array.isArray(data) ? data : []))
-      .catch(() => setHouses([]))
-      .finally(() => setHousesLoading(false));
-  }, []);
+    let cancelled = false;
+    setHousesLoading(true);
+    setHouses([]);
+    setPoints([]);
+    setSelectedHouseToken(null);
+    setHoveredHouse(null);
+    fetchListingsPage({ listing_type: houseType, sort: 'price_asc', limit: PAGE_SIZE, offset: 0 })
+      .then(({ items, total: count }) => {
+        if (cancelled) return;
+        setHouses(items);
+        setTotal(count);
+      })
+      .catch(() => !cancelled && setHouses([]))
+      .finally(() => !cancelled && setHousesLoading(false));
+    fetchListingPoints({ listing_type: houseType })
+      .then((pts) => !cancelled && setPoints(pts))
+      .catch(() => !cancelled && setPoints([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [houseType]);
 
-  const selectedHouse = houses.find((h) => h.token === selectedHouseToken) || null;
-  const mapHouse = selectedHouse ? { lat: selectedHouse.lat, lng: selectedHouse.lng } : null;
+  const loadMore = async () => {
+    if (loadingMore || houses.length >= total) return;
+    setLoadingMore(true);
+    try {
+      const { items } = await fetchListingsPage({
+        listing_type: houseType,
+        sort: 'price_asc',
+        limit: PAGE_SIZE,
+        offset: houses.length,
+      });
+      setHouses((prev) => {
+        const seen = new Set(prev.map((h) => h.token));
+        return [...prev, ...items.filter((h) => !seen.has(h.token))];
+      });
+    } catch {
+      /* keep what is already shown */
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // A house picked on the map may not be on a loaded page yet -- fetch its details for the list.
+  useEffect(() => {
+    if (!selectedHouseToken || houses.some((h) => h.token === selectedHouseToken)) {
+      setSelectedDetail(null);
+      return;
+    }
+    let cancelled = false;
+    fetchListing(selectedHouseToken)
+      .then((d) => !cancelled && setSelectedDetail(d))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedHouseToken, houses]);
+
+  const selectedPoint = points.find((p) => p.token === selectedHouseToken) || null;
+  const selectedHouse =
+    houses.find((h) => h.token === selectedHouseToken) ||
+    (selectedDetail?.token === selectedHouseToken ? selectedDetail : null);
+  const placed = selectedHouse || selectedPoint;
+  const mapHouse = placed ? { lat: placed.lat, lng: placed.lng } : null;
 
   const selectHouseFromList = (house) => {
     setSelectedHouseToken(house.token);
@@ -51,8 +109,30 @@ const FamilyFinderPage = () => {
         <div className='lg:col-span-1 flex flex-col gap-4'>
           <div className='bg-white rounded-xl border border-gray-100 shadow-sm p-4'>
             <p className='text-xs text-gray-400 mb-2'>
-              یک خانه را از لیست انتخاب کنید — با نگه‌داشتن ماوس روی هر مورد، محل آن روی نقشه نمایش داده می‌شود
+              یک خانه را از لیست یا از روی نقشه انتخاب کنید — با نگه‌داشتن ماوس روی هر مورد، محل و مشخصات آن را می‌بینید
             </p>
+            <div className='flex items-center gap-1.5 mb-2'>
+              {[
+                ['buy', 'فروش'],
+                ['rent', 'اجاره'],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type='button'
+                  onClick={() => setHouseType(key)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                    houseType === key
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+              {!housesLoading && (
+                <span className='mr-auto text-[11px] text-gray-400'>{total.toLocaleString('fa-IR')} ملک</span>
+              )}
+            </div>
             {selectedHouseToken && (
               <div className='flex items-center justify-between text-sm text-gray-700 bg-green-50 rounded-lg px-3 py-1.5 mb-2'>
                 <span>🏠 خانه انتخاب شد</span>
@@ -65,7 +145,7 @@ const FamilyFinderPage = () => {
             <div className='flex flex-col gap-1.5 max-h-[600px] overflow-y-auto'>
               {/* Once a house is picked, the rest of the list hides until the
                   user clears the selection above. */}
-              {(selectedHouseToken ? houses.filter((h) => h.token === selectedHouseToken) : houses).map((h) => (
+              {(selectedHouseToken ? [selectedHouse].filter(Boolean) : houses).map((h) => (
                 <div
                   key={h.token}
                   onMouseEnter={() => setHoveredHouse({ lat: h.lat, lng: h.lng, ...houseSummary(h) })}
@@ -92,13 +172,23 @@ const FamilyFinderPage = () => {
                   </div>
                   <div className='min-w-0'>
                     <p className='text-xs font-bold text-gray-800 truncate'>
-                      {formatToman(h.listing_type === 'buy' ? h.price : h.rent || h.deposit)} تومان
+                      {houseSummary(h).price}
                     </p>
                     <p className='text-xs text-gray-500 truncate'>{h.title}</p>
                     <p className='text-[11px] text-gray-400 truncate'>{h.district}</p>
                   </div>
                 </div>
               ))}
+              {!selectedHouseToken && houses.length < total && (
+                <button
+                  type='button'
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className='mx-auto my-2 bg-white border border-gray-200 hover:border-blue-500 text-blue-600 text-xs font-semibold px-4 py-2 rounded-lg'
+                >
+                  {loadingMore ? 'در حال بارگذاری...' : `نمایش بیشتر (${(total - houses.length).toLocaleString('fa-IR')} ملک دیگر)`}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -106,7 +196,7 @@ const FamilyFinderPage = () => {
         {/* Map */}
         <div className='lg:col-span-2 h-[420px] rounded-xl overflow-hidden border border-gray-100 shadow-sm'>
           <FamilyFinderMap
-            allHouses={!selectedHouseToken ? houses : []}
+            allHouses={!selectedHouseToken ? points : []}
             onHouseHover={setHoveredHouse}
             onHouseClick={selectHouseFromList}
             house={mapHouse}
