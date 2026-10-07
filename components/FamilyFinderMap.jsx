@@ -167,8 +167,12 @@ const FamilyFinderMap = ({
       {hoveredHouse && (() => {
         // A bubble with what the house is ("۱۳۵ متر در نیاوران" / price) sits above the pin; if the
         // house is near the top edge of the map it flips below instead so it isn't cut off.
-        const pt = mapRef.current?.getMap?.()?.project?.([hoveredHouse.lng, hoveredHouse.lat]);
+        const map = mapRef.current?.getMap?.();
+        const pt = map?.project?.([hoveredHouse.lng, hoveredHouse.lat]);
+        const width = map?.getContainer?.()?.clientWidth;
         const flip = pt && pt.y < 110;
+        // near the left/right edge, slide the bubble inward so it isn't cut off
+        const shiftX = pt && width ? (pt.x > width - 120 ? '-85%' : pt.x < 120 ? '-15%' : '-50%') : '-50%';
         return (
           // pointerEvents:none on the Marker itself (not just its child): this pin is
           // drawn exactly over the hovered dot, so if it caught the mouse the dot
@@ -187,7 +191,7 @@ const FamilyFinderMap = ({
                   style={{
                     position: 'absolute',
                     left: '50%',
-                    transform: 'translateX(-50%)',
+                    transform: `translateX(${shiftX})`,
                     ...(flip ? { top: 'calc(100% + 10px)' } : { bottom: 'calc(100% + 10px)' }),
                     background: 'white',
                     color: '#1f2937',
