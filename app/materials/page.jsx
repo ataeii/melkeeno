@@ -2,6 +2,7 @@ import Link from 'next/link';
 import connectDB from '@/config/database';
 import MaterialPrice from '@/models/MaterialPrice';
 import { pageMeta } from '@/lib/seo';
+import { fetchMaterialsSummary } from '@/lib/api';
 
 // Server-rendered on purpose: this used to be a client component that fetched
 // prices after load, so the HTML a crawler first saw contained no prices at
@@ -19,17 +20,19 @@ const CATEGORY_LABELS = {
 
 const CATEGORY_ORDER = ['cement', 'rebar', 'brick', 'block', 'gypsum'];
 
+// Sellers whose prices feed the comparison pages -- each checked by hand (live, prices in
+// plain HTML, robots.txt allows fetching). Replaces an older list that still had a dead
+// domain and an expired one.
 const SUPPLIERS = [
-  { name: 'مه‌میل استور', url: 'https://mahmilstore.com' },
-  { name: 'البرز مصالح', url: 'https://alborzmasaleh.com' },
+  { name: 'خانه سیمان', url: 'https://www.khanehsiman.com' },
+  { name: 'سیوان‌لند', url: 'https://sivanland.com' },
   { name: 'بازار سفید', url: 'https://bazarsefid.com' },
-  { name: 'مصالح مارکت', url: 'https://masalehmarket.com' },
-  { name: 'مصالح کرمی', url: 'https://masalehakrami.com' },
-  { name: 'گچ لند', url: 'https://gachland.com' },
+  { name: 'سیمنت', url: 'https://siment.ir' },
+  { name: 'مه‌میل استور', url: 'https://mahmilstore.com' },
+  { name: 'البرز مصالح', url: 'https://www.alborzmasaleh.com' },
+  { name: 'دیجی مصالح', url: 'https://digimasaleh.com' },
+  { name: 'بلوک سبک', url: 'https://xn--mgbqq.com' },
   { name: 'آهن آنلاین', url: 'https://ahanonline.com' },
-  { name: 'آهنگر', url: 'https://ahangar.com' },
-  { name: 'فولادسل', url: 'https://fooladsell.com' },
-  { name: 'آهن اینجا', url: 'https://ahaninja.com' },
 ];
 
 const formatDate = (iso) => {
@@ -66,6 +69,7 @@ export async function generateMetadata() {
 
 const MaterialsPage = async () => {
   const { items, updatedAt, error } = await loadPrices();
+  const summary = await fetchMaterialsSummary().catch(() => ({}));
   const loading = false;
 
   const grouped = CATEGORY_ORDER.map((cat) => ({
@@ -95,7 +99,9 @@ const MaterialsPage = async () => {
             <div className='bg-gray-50 border-b border-gray-100 px-4 py-2.5 flex items-center justify-between'>
               <h2 className='text-sm font-bold text-gray-800'>{g.label}</h2>
               <Link href={`/materials/${g.category}`} className='text-xs text-blue-600 hover:text-blue-700'>
-                مقایسه قیمت فروشندگان ←
+                {summary?.[g.category]?.n_sellers
+                  ? `مقایسه قیمت از ${summary[g.category].n_sellers.toLocaleString('fa-IR')} فروشنده ←`
+                  : 'مقایسه قیمت فروشندگان ←'}
               </Link>
             </div>
             <div className='divide-y divide-gray-100'>

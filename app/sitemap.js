@@ -107,6 +107,24 @@ export default async function sitemap() {
     // same fallback reasoning as the listings fetch above
   }
 
+  // Building-materials comparison: one page per item that has 2+ sellers (a single-seller
+  // item is just a product page, too thin to be worth indexing).
+  let materialUrls = [];
+  try {
+    const res = await fetch(`${API}/api/materials-sitemap`, { cache: 'no-store' });
+    if (res.ok) {
+      const rows = await res.json();
+      materialUrls = rows
+        .filter((r) => r.sellers >= 2)
+        .map((r) => ({
+          url: `${DOMAIN}/materials/${r.category}/${encodeURIComponent(r.item_key)}`,
+          lastModified: r.updated ? new Date(r.updated) : new Date(),
+        }));
+    }
+  } catch {
+    // same fallback reasoning as the listings fetch above
+  }
+
   const articleUrls = articles.map((article) => ({
     url: `${DOMAIN}/articles/${article.slug}`,
     lastModified: article.updatedAt,
@@ -147,6 +165,7 @@ export default async function sitemap() {
     ...schoolUrls,
     ...placeUrls,
     ...rentUrls,
+    ...materialUrls,
     ...articleUrls,
     ...listingUrls,
   ];
