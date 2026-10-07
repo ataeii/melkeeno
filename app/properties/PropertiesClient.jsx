@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import PropertyCard from '@/components/PropertyCard';
-import { fetchListings, fetchMeta, nearbyServices } from '@/lib/api';
+import { fetchListingsPage, fetchListingPoints, fetchListing, fetchMeta, nearbyServices } from '@/lib/api';
 import { FaHospital, FaSchool, FaTimes } from 'react-icons/fa';
 
 const SearchMap = dynamic(() => import('@/components/SearchMap'), { ssr: false });
@@ -28,21 +28,6 @@ const FILTER_DEFAULTS = {
 // are always "set" to something by design, so they don't count as refinements.
 const REFINEMENT_KEYS = ['district', 'rooms', 'min_area', 'min_price', 'max_price', 'amenities', 'market'];
 
-// Verdict / typical-price / confidence fields differ for buy vs rent listings.
-const MARKET_FIELDS = {
-  buy: { value: 'price', typical: 'price_range_typical', verdict: 'price_verdict', confidence: 'price_confidence' },
-  rent: { value: 'rent', typical: 'rent_range_typical', verdict: 'rent_verdict', confidence: 'rent_confidence' },
-};
-const VERDICT_OF = { below: 'below_market', fair: 'fair', above: 'above_market' };
-
-// Real gap between asking and typical price (negative = cheaper than market).
-// The engine's own verdict_pct is capped at +-15%, so it can't rank deals.
-const marketGap = (listing, f) => {
-  const value = Number(listing[f.value]);
-  const typical = Number(listing[f.typical]);
-  return value > 0 && typical > 0 ? (value - typical) / typical : null;
-};
-
 const AMENITY_OPTIONS = [
   { key: 'parking', label: 'پارکینگ' },
   { key: 'elevator', label: 'آسانسور' },
@@ -54,14 +39,37 @@ const AMENITY_OPTIONS = [
   { key: 'sauna', label: 'سونا' },
 ];
 
-// Cards are rendered in pages of this size -- rendering all ~1,800 at once
-// made the list (and the DOM) enormous. The map still gets every listing.
-const PAGE_SIZE = 60;
+// Listings load from the server one page at a time (the market-price filter
+// and the discount sort also run server-side, across ALL listings). The map is
+// fed separately with a minimal point for every match.
+const PAGE_SIZE = 30;
 
-const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
+// Filters -> API query params (shared by the page, map-points and load-more calls).
+const buildParams = (filters) => {
+  const params = { listing_type: filters.listing_type || 'buy' };
+  if (filters.district) params.district = filters.district;
+  if (filters.rooms === '4+') params.min_rooms = 4;
+  else if (filters.rooms) params.rooms = filters.rooms;
+  if (filters.min_area) params.min_area = filters.min_area;
+  if (filters.min_price) params.min_price = filters.min_price;
+  if (filters.max_price) params.max_price = filters.max_price;
+  if (filters.amenities.length > 0) params.amenities = filters.amenities.join(',');
+  // Short-term rentals have no market verdict.
+  if (filters.market && params.listing_type !== 'short_term') {
+    params.market = filters.market;
+    params.sure = filters.sure ? 'true' : 'false';
+  }
+  return params;
+};
+
+const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistricts = [] }) => {
   const [listings, setListings] = useState(initialListings);
+  const [total, setTotal] = useState(initialTotal || initialListings.length);
+  const [points, setPoints] = useState([]);
+  const [activeDetail, setActiveDetail] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const requestId = useRef(0);
   const [districts, setDistricts] = useState(initialDistricts);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [activeToken, setActiveToken] = useState(null);
   const [hoveredToken, setHoveredToken] = useState(null);
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
@@ -82,65 +90,89 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
       .catch(() => {});
   }, [initialDistricts.length]);
 
-  // Load listings whenever filters change
-  const loadListings = useCallback(async () => {
+  // First page (and total) whenever filters or sort change; stale responses
+  // from an earlier filter are dropped via requestId.
+  useEffect(() => {
+    const id = ++requestId.current;
     setLoading(true);
     setError(null);
-    try {
-      const params = {};
-      if (filters.listing_type) params.listing_type = filters.listing_type;
-      if (filters.district) params.district = filters.district;
-      if (filters.rooms) params.rooms = filters.rooms === '4' ? undefined : filters.rooms;
-      if (filters.rooms === '4+') params.min_rooms = 4;
-      else if (filters.rooms) params.rooms = filters.rooms;
-      if (filters.min_area) params.min_area = filters.min_area;
-      if (filters.min_price) params.min_price = filters.min_price;
-      if (filters.max_price) params.max_price = filters.max_price;
-      if (filters.amenities.length > 0) params.amenities = filters.amenities.join(',');
-      if (filters.sort && filters.sort !== 'discount') params.sort = filters.sort;
-
-      const data = await fetchListings(params);
-      setListings(Array.isArray(data) ? data : []);
-      setVisibleCount(PAGE_SIZE);
-    } catch (e) {
-      setError('خطا در بارگذاری آگهی‌ها');
-      setListings([]);
-    } finally {
-      setLoading(false);
-    }
+    fetchListingsPage({ ...buildParams(filters), sort: filters.sort, limit: PAGE_SIZE, offset: 0 })
+      .then(({ items, total: count }) => {
+        if (id !== requestId.current) return;
+        setListings(items);
+        setTotal(count);
+      })
+      .catch(() => {
+        if (id !== requestId.current) return;
+        setError('خطا در بارگذاری آگهی‌ها');
+        setListings([]);
+        setTotal(0);
+      })
+      .finally(() => {
+        if (id === requestId.current) setLoading(false);
+      });
   }, [filters]);
 
+  // Map points for every match -- independent of sort, so changing the sort
+  // doesn't reload the map.
+  const pointsKey = JSON.stringify(buildParams(filters));
   useEffect(() => {
-    loadListings();
-  }, [loadListings]);
-
-  // Market-price filter + discount sort run on the loaded listings (the verdicts
-  // are already on every row), so no backend change is needed.
-  const shown = useMemo(() => {
-    const f = MARKET_FIELDS[filters.listing_type];
-    if (!f) return listings;
-    let rows = listings;
-    if (filters.market) {
-      rows = rows.filter(
-        (l) =>
-          l[f.verdict] === VERDICT_OF[filters.market] &&
-          (!filters.sure || ['medium', 'high'].includes(l[f.confidence]))
-      );
-    }
-    if (filters.sort === 'discount') {
-      rows = [...rows].sort((a, b) => {
-        const ga = marketGap(a, f);
-        const gb = marketGap(b, f);
-        if (ga == null && gb == null) return 0;
-        if (ga == null) return 1;
-        if (gb == null) return -1;
-        return ga - gb;
+    let cancelled = false;
+    fetchListingPoints(JSON.parse(pointsKey))
+      .then((pts) => {
+        if (!cancelled) setPoints(pts);
+      })
+      .catch(() => {
+        if (!cancelled) setPoints([]);
       });
-    }
-    return rows;
-  }, [listings, filters.listing_type, filters.market, filters.sure, filters.sort]);
+    return () => {
+      cancelled = true;
+    };
+  }, [pointsKey]);
 
-  const activeListing = shown.find((l) => l.token === activeToken) || null;
+  const loadMore = async () => {
+    if (loadingMore || listings.length >= total) return;
+    setLoadingMore(true);
+    const id = requestId.current;
+    try {
+      const { items } = await fetchListingsPage({
+        ...buildParams(filters),
+        sort: filters.sort,
+        limit: PAGE_SIZE,
+        offset: listings.length,
+      });
+      if (id === requestId.current) {
+        setListings((prev) => {
+          const seen = new Set(prev.map((l) => l.token));
+          return [...prev, ...items.filter((l) => !seen.has(l.token))];
+        });
+      }
+    } catch (e) {
+      setError('خطا در بارگذاری آگهی‌های بیشتر');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // A listing picked on the map may not be on a loaded page yet -- fetch its details.
+  useEffect(() => {
+    if (!activeToken || listings.some((l) => l.token === activeToken)) {
+      setActiveDetail(null);
+      return;
+    }
+    let cancelled = false;
+    fetchListing(activeToken)
+      .then((d) => {
+        if (!cancelled) setActiveDetail(d);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeToken, listings]);
+
+  const activeListing =
+    listings.find((l) => l.token === activeToken) || (activeDetail?.token === activeToken ? activeDetail : null);
 
   useEffect(() => {
     if (!activeListing || !activeListing.lat || !activeListing.lng) {
@@ -266,7 +298,7 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
 
           {/* Count badge */}
           <span className='mr-auto bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1 rounded-full'>
-            {loading ? '...' : `${shown.length} آگهی`}
+            {loading ? '...' : `${total.toLocaleString('fa-IR')} آگهی`}
           </span>
         </div>
 
@@ -425,7 +457,7 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
           <a href='/properties/rent' className='block px-3 text-xs text-blue-700 font-semibold hover:underline'>
             اجاره آپارتمان به تفکیک محله ←
           </a>
-          {loading && shown.length === 0 && (
+          {loading && listings.length === 0 && (
             <div className='flex items-center justify-center h-32 text-gray-400'>
               <span>در حال بارگذاری...</span>
             </div>
@@ -435,13 +467,13 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
               <span>{error}</span>
             </div>
           )}
-          {!loading && !error && shown.length === 0 && (
+          {!loading && !error && listings.length === 0 && (
             <div className='flex items-center justify-center h-32 text-gray-400'>
               <span>آگهی‌ای یافت نشد</span>
             </div>
           )}
           <div className='p-3 flex flex-col gap-3'>
-            {shown.slice(0, visibleCount).map((listing) => (
+            {listings.map((listing) => (
               <div
                 key={listing.token}
                 onMouseEnter={() => setHoveredToken(listing.token)}
@@ -460,13 +492,14 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
                 />
               </div>
             ))}
-            {shown.length > visibleCount && (
+            {listings.length < total && (
               <button
                 type='button'
-                onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                onClick={loadMore}
+                disabled={loadingMore}
                 className='mx-auto my-2 bg-white border border-gray-200 hover:border-blue-500 text-blue-600 text-sm font-semibold px-5 py-2.5 rounded-lg'
               >
-                نمایش آگهی‌های بیشتر ({(shown.length - visibleCount).toLocaleString('fa-IR')} آگهی دیگر)
+                {loadingMore ? 'در حال بارگذاری...' : `نمایش آگهی‌های بیشتر (${(total - listings.length).toLocaleString('fa-IR')} آگهی دیگر)`}
               </button>
             )}
           </div>
@@ -475,7 +508,8 @@ const PropertiesClient = ({ initialListings = [], initialDistricts = [] }) => {
         {/* Right panel: map */}
         <div className={`${mobileView === 'list' ? 'hidden' : 'block'} md:block w-full md:flex-1 relative`}>
           <SearchMap
-            listings={shown}
+            points={points}
+            activeListing={activeListing}
             activeToken={activeToken}
             onMarkerClick={handleMarkerClick}
             hoveredToken={hoveredToken}

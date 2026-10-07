@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState, useCallback, useMemo } from 'react';
-import Map, { Marker, Popup } from 'react-map-gl/maplibre';
+import Map, { Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
 
 function formatPriceBubble(listing) {
   const price = listing.listing_type === 'rent' ? listing.rent : listing.price;
@@ -30,13 +30,19 @@ function priceColor(t) {
 
 const NO_PRICE_COLOR = '#6b7280';
 
-const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, onMarkerHover }) => {
+// `points` are minimal map points (token, lat, lng, type, price, rent) for every
+// match; `activeListing` is the full listing (a loaded card, or fetched on demand
+// when a point is clicked) and drives the popup.
+//
+// All points are drawn as ONE WebGL circle layer (+ a price-label layer once
+// zoomed in), not as HTML <Marker> elements: with ~5,000 listings, 5,000 DOM
+// markers each get their own compositor layer and the browser stops painting
+// reliably. Only the hovered and active listing get a bubble Marker.
+const SearchMap = ({ points = [], activeListing = null, activeToken, onMarkerClick, hoveredToken, onMarkerHover }) => {
   const mapRef = useRef(null);
-  const [popupInfo, setPopupInfo] = useState(null);
 
   const handleMarkerClick = useCallback(
     (listing) => {
-      setPopupInfo(listing);
       onMarkerClick && onMarkerClick(listing.token);
       if (mapRef.current && listing.lat && listing.lng) {
         mapRef.current.flyTo({
@@ -54,7 +60,7 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
   if (activeToken !== prevActiveToken.current) {
     prevActiveToken.current = activeToken;
     if (activeToken && mapRef.current) {
-      const listing = listings.find((l) => l.token === activeToken);
+      const listing = points.find((l) => l.token === activeToken);
       if (listing && listing.lat && listing.lng) {
         mapRef.current.flyTo({
           center: [listing.lng, listing.lat],
@@ -66,11 +72,8 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
   }
 
   const validListings = useMemo(
-    () =>
-      listings.filter(
-        (l) => l.lat && l.lng && !isNaN(parseFloat(l.lat)) && !isNaN(parseFloat(l.lng))
-      ),
-    [listings]
+    () => points.filter((l) => l.lat && l.lng && !isNaN(parseFloat(l.lat)) && !isNaN(parseFloat(l.lng))),
+    [points]
   );
 
   // Rank-based position (0 = cheapest, 1 = priciest) within each listing type,
@@ -89,6 +92,93 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
     return ranks;
   }, [validListings]);
 
+  const geojson = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: validListings.map((l) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [parseFloat(l.lng), parseFloat(l.lat)] },
+        properties: {
+          token: l.token,
+          c: priceRank[l.token] != null ? priceColor(priceRank[l.token]) : NO_PRICE_COLOR,
+          label: formatPriceBubble(l),
+        },
+      })),
+    }),
+    [validListings, priceRank]
+  );
+
+  const pointByToken = useMemo(() => {
+    const m = {};
+    validListings.forEach((l) => {
+      m[l.token] = l;
+    });
+    return m;
+  }, [validListings]);
+
+  const [cursor, setCursor] = useState('');
+  const hoverFromMap = useRef(null);
+
+  const handleMapClick = (e) => {
+    const f = e.features && e.features[0];
+    if (!f) return;
+    const [lng, lat] = f.geometry.coordinates;
+    handleMarkerClick({ token: f.properties.token, lng, lat });
+  };
+
+  const handleMapMove = (e) => {
+    const f = e.features && e.features[0];
+    const token = f ? f.properties.token : null;
+    setCursor(token ? 'pointer' : '');
+    if (token !== hoverFromMap.current) {
+      hoverFromMap.current = token;
+      onMarkerHover && onMarkerHover(token);
+    }
+  };
+
+  const handleMapLeave = () => {
+    setCursor('');
+    if (hoverFromMap.current !== null) {
+      hoverFromMap.current = null;
+      onMarkerHover && onMarkerHover(null);
+    }
+  };
+
+  // Bubble (price pill) for the listing that is hovered/active. pointer-events:none
+  // so it never steals the mouse from the dot underneath it (that caused a
+  // pop-in/pop-out flicker once before).
+  const bubbleFor = (token, isActive) => {
+    const listing = pointByToken[token];
+    if (!listing) return null;
+    const baseColor = priceRank[token] != null ? priceColor(priceRank[token]) : NO_PRICE_COLOR;
+    return (
+      <Marker
+        key={`bubble-${isActive ? 'a' : 'h'}-${token}`}
+        longitude={parseFloat(listing.lng)}
+        latitude={parseFloat(listing.lat)}
+        anchor='bottom'
+        style={{ pointerEvents: 'none', zIndex: isActive ? 12 : 11 }}
+      >
+        <div
+          style={{
+            background: isActive ? '#f59e0b' : baseColor,
+            color: 'white',
+            padding: '8px 14px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            boxShadow: isActive ? '0 4px 12px rgba(245,158,11,0.6)' : '0 4px 12px rgba(0,0,0,0.5)',
+            border: '2px solid white',
+            whiteSpace: 'nowrap',
+            transform: isActive ? 'scale(1.15)' : 'scale(1.25)',
+          }}
+        >
+          {formatPriceBubble(listing)}
+        </div>
+      </Marker>
+    );
+  };
+
   return (
     <Map
       ref={mapRef}
@@ -99,93 +189,84 @@ const SearchMap = ({ listings = [], activeToken, onMarkerClick, hoveredToken, on
       }}
       style={{ width: '100%', height: '100%' }}
       mapStyle='https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
+      interactiveLayerIds={['pts-circles']}
+      onClick={handleMapClick}
+      onMouseMove={handleMapMove}
+      onMouseLeave={handleMapLeave}
+      cursor={cursor}
     >
-      {validListings.map((listing) => {
-        const isActive = activeToken === listing.token;
-        const isHovered = hoveredToken === listing.token;
-        const baseColor =
-          priceRank[listing.token] != null ? priceColor(priceRank[listing.token]) : NO_PRICE_COLOR;
-        return (
-          <Marker
-            key={listing.token}
-            longitude={parseFloat(listing.lng)}
-            latitude={parseFloat(listing.lat)}
-            anchor='bottom'
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              handleMarkerClick(listing);
-            }}
-          >
-            <div
-              onMouseEnter={() => onMarkerHover && onMarkerHover(listing.token)}
-              onMouseLeave={() => onMarkerHover && onMarkerHover(null)}
-              style={{
-                background: isActive ? '#f59e0b' : baseColor,
-                color: 'white',
-                padding: '8px 14px',
-                borderRadius: '20px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: isActive
-                  ? '0 4px 12px rgba(245,158,11,0.6)'
-                  : isHovered
-                  ? '0 4px 12px rgba(0,0,0,0.5)'
-                  : '0 2px 8px rgba(0,0,0,0.3)',
-                border: '2px solid white',
-                whiteSpace: 'nowrap',
-                transform: isHovered ? 'scale(1.25)' : isActive ? 'scale(1.15)' : 'scale(1)',
-                transition: 'all 0.2s ease',
-                zIndex: isActive || isHovered ? 10 : 1,
-              }}
-            >
-              {formatPriceBubble(listing)}
-            </div>
-          </Marker>
-        );
-      })}
+      <Source id='pts' type='geojson' data={geojson}>
+        <Layer
+          id='pts-circles'
+          type='circle'
+          paint={{
+            'circle-color': ['get', 'c'],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3, 12, 5, 15, 9],
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 1.5,
+            'circle-opacity': 0.95,
+          }}
+        />
+        <Layer
+          id='pts-labels'
+          type='symbol'
+          minzoom={13.5}
+          layout={{
+            'text-field': ['get', 'label'],
+            'text-font': ['Montserrat Medium'],
+            'text-size': 11,
+            'text-anchor': 'bottom',
+            'text-offset': [0, -0.9],
+            'text-optional': true,
+          }}
+          paint={{ 'text-color': '#1f2937', 'text-halo-color': '#ffffff', 'text-halo-width': 2 }}
+        />
+      </Source>
 
-      {popupInfo && popupInfo.lat && popupInfo.lng && (
+      {hoveredToken && hoveredToken !== activeToken && bubbleFor(hoveredToken, false)}
+      {activeToken && bubbleFor(activeToken, true)}
+
+      {activeListing && activeListing.lat && activeListing.lng && (
         <Popup
-          longitude={parseFloat(popupInfo.lng)}
-          latitude={parseFloat(popupInfo.lat)}
+          longitude={parseFloat(activeListing.lng)}
+          latitude={parseFloat(activeListing.lat)}
           anchor='top'
-          onClose={() => setPopupInfo(null)}
+          onClose={() => onMarkerClick && onMarkerClick(null)}
           closeOnClick={false}
           style={{ direction: 'rtl' }}
           maxWidth='240px'
         >
           <div style={{ direction: 'rtl', fontFamily: 'Vazirmatn, sans-serif' }}>
-            {popupInfo.image_url && (
+            {activeListing.image_url && (
               <img
-                src={popupInfo.image_url}
-                alt={popupInfo.title || 'ملک'}
+                src={activeListing.image_url}
+                alt={activeListing.title || 'ملک'}
                 style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', marginBottom: '8px' }}
                 onError={(e) => { e.target.style.display = 'none'; }}
               />
             )}
             <div style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '4px', color: '#1e3a5f' }}>
-              {popupInfo.listing_type === 'rent'
-                ? (popupInfo.rent ? formatPrice(popupInfo.rent) + '/ماه' : 'تماس بگیرید')
-                : (popupInfo.price ? formatPrice(popupInfo.price) : 'تماس بگیرید')}
+              {activeListing.listing_type === 'rent'
+                ? (activeListing.rent ? formatPrice(activeListing.rent) + '/ماه' : 'تماس بگیرید')
+                : (activeListing.price ? formatPrice(activeListing.price) : 'تماس بگیرید')}
             </div>
             <div style={{ fontSize: '11px', color: '#555', marginBottom: '4px' }}>
               {[
-                popupInfo.area_m2 && `${popupInfo.area_m2} م²`,
-                popupInfo.rooms && `${popupInfo.rooms} خواب`,
-                popupInfo.floor != null && `طبقه ${popupInfo.floor}`,
+                activeListing.area_m2 && `${activeListing.area_m2} م²`,
+                activeListing.rooms && `${activeListing.rooms} خواب`,
+                activeListing.floor != null && `طبقه ${activeListing.floor}`,
               ]
                 .filter(Boolean)
                 .join(' · ')}
             </div>
-            {popupInfo.district && (
+            {activeListing.district && (
               <div style={{ fontSize: '11px', color: '#888', marginBottom: '6px' }}>
-                📍 {popupInfo.district}
+                📍 {activeListing.district}
               </div>
             )}
-            {popupInfo.url && (
+            {activeListing.url && (
               <a
-                href={popupInfo.url}
+                href={activeListing.url}
                 target='_blank'
                 rel='nofollow noopener noreferrer'
                 style={{ fontSize: '12px', color: '#2563eb', textDecoration: 'underline' }}
