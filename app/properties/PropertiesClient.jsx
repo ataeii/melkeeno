@@ -68,6 +68,7 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
   const [points, setPoints] = useState([]);
   const [activeDetail, setActiveDetail] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [colorMode, setColorMode] = useState('price'); // map dot colours: 'price' | 'market'
   const requestId = useRef(0);
   const [districts, setDistricts] = useState(initialDistricts);
   const [activeToken, setActiveToken] = useState(null);
@@ -514,7 +515,56 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
             onMarkerClick={handleMarkerClick}
             hoveredToken={hoveredToken}
             onMarkerHover={setHoveredToken}
+            colorMode={filters.listing_type === 'short_term' ? 'price' : colorMode}
           />
+
+          {/* Colour mode + legend */}
+          <div
+            dir='rtl'
+            className='absolute bottom-6 right-3 z-10 bg-white/95 rounded-xl shadow-md border border-gray-100 px-3 py-2 text-[11px] text-gray-600'
+          >
+            {filters.listing_type !== 'short_term' && (
+              <div className='flex items-center gap-1 mb-1.5'>
+                <span className='text-gray-400'>رنگ نقطه‌ها:</span>
+                {[
+                  { key: 'price', label: 'قیمت' },
+                  { key: 'market', label: 'نسبت به بازار' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type='button'
+                    onClick={() => setColorMode(key)}
+                    className={`px-2 py-0.5 rounded-full border font-semibold ${
+                      colorMode === key
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {colorMode === 'market' && filters.listing_type !== 'short_term' ? (
+              <div className='flex items-center gap-2.5 flex-wrap'>
+                <span className='flex items-center gap-1'><i className='inline-block w-2.5 h-2.5 rounded-full' style={{ background: '#15803d' }} />زیر بازار</span>
+                <span className='flex items-center gap-1'><i className='inline-block w-2.5 h-2.5 rounded-full' style={{ background: '#ca8a04' }} />نزدیک بازار</span>
+                <span className='flex items-center gap-1'><i className='inline-block w-2.5 h-2.5 rounded-full' style={{ background: '#b91c1c' }} />بالاتر از بازار</span>
+                <span className='flex items-center gap-1'><i className='inline-block w-2.5 h-2.5 rounded-full' style={{ background: '#6b7280' }} />برآورد مطمئن ندارد</span>
+              </div>
+            ) : (
+              <div className='flex items-center gap-2'>
+                <span>ارزان‌ترین</span>
+                <i className='inline-block h-2 w-24 rounded' style={{ background: 'linear-gradient(to left, hsl(0,70%,28%), hsl(68,70%,28%), hsl(135,70%,28%))' }} />
+                <span>گران‌ترین</span>
+              </div>
+            )}
+            {colorMode === 'price' && filters.listing_type !== 'short_term' && (
+              <p className='mt-1 text-gray-400 max-w-[230px] leading-relaxed'>
+                رنگ بر اساس قیمت کل است؛ محله‌های گران طبیعتاً قرمزترند. برای دیدن ارزان یا گران بودن نسبت به همان محله، «نسبت به بازار» را بزنید.
+              </p>
+            )}
+          </div>
 
           {activeListing && (
             <div

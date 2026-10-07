@@ -30,6 +30,13 @@ function priceColor(t) {
 
 const NO_PRICE_COLOR = '#6b7280';
 
+// "vs market" colouring uses the pricing engine's verdict, but only where the
+// estimate is reasonably reliable (medium/high confidence) -- a low-confidence
+// verdict is mostly noise, so those dots stay neutral grey.
+const MARKET_COLORS = { below_market: '#15803d', fair: '#ca8a04', above_market: '#b91c1c' };
+const marketColor = (l) =>
+  (['medium', 'high'].includes(l.confidence) && MARKET_COLORS[l.verdict]) || NO_PRICE_COLOR;
+
 // `points` are minimal map points (token, lat, lng, type, price, rent) for every
 // match; `activeListing` is the full listing (a loaded card, or fetched on demand
 // when a point is clicked) and drives the popup.
@@ -38,7 +45,15 @@ const NO_PRICE_COLOR = '#6b7280';
 // zoomed in), not as HTML <Marker> elements: with ~5,000 listings, 5,000 DOM
 // markers each get their own compositor layer and the browser stops painting
 // reliably. Only the hovered and active listing get a bubble Marker.
-const SearchMap = ({ points = [], activeListing = null, activeToken, onMarkerClick, hoveredToken, onMarkerHover }) => {
+const SearchMap = ({
+  points = [],
+  activeListing = null,
+  activeToken,
+  onMarkerClick,
+  hoveredToken,
+  onMarkerHover,
+  colorMode = 'price', // 'price' (cheapest->priciest) | 'market' (below/near/above market)
+}) => {
   const mapRef = useRef(null);
 
   const handleMarkerClick = useCallback(
@@ -92,6 +107,13 @@ const SearchMap = ({ points = [], activeListing = null, activeToken, onMarkerCli
     return ranks;
   }, [validListings]);
 
+  const colorFor = (l) =>
+    colorMode === 'market'
+      ? marketColor(l)
+      : priceRank[l.token] != null
+      ? priceColor(priceRank[l.token])
+      : NO_PRICE_COLOR;
+
   const geojson = useMemo(
     () => ({
       type: 'FeatureCollection',
@@ -100,12 +122,12 @@ const SearchMap = ({ points = [], activeListing = null, activeToken, onMarkerCli
         geometry: { type: 'Point', coordinates: [parseFloat(l.lng), parseFloat(l.lat)] },
         properties: {
           token: l.token,
-          c: priceRank[l.token] != null ? priceColor(priceRank[l.token]) : NO_PRICE_COLOR,
+          c: colorFor(l),
           label: formatPriceBubble(l),
         },
       })),
     }),
-    [validListings, priceRank]
+    [validListings, priceRank, colorMode]
   );
 
   const pointByToken = useMemo(() => {
@@ -150,7 +172,7 @@ const SearchMap = ({ points = [], activeListing = null, activeToken, onMarkerCli
   const bubbleFor = (token, isActive) => {
     const listing = pointByToken[token];
     if (!listing) return null;
-    const baseColor = priceRank[token] != null ? priceColor(priceRank[token]) : NO_PRICE_COLOR;
+    const baseColor = colorFor(listing);
     return (
       <Marker
         key={`bubble-${isActive ? 'a' : 'h'}-${token}`}
