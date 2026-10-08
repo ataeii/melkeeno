@@ -1,10 +1,13 @@
 import connectDB from '@/config/database';
 import UserListing from '@/models/UserListing';
 import { getSessionUser } from '@/utils/getSessionUser';
+import { advertiserFor } from '@/lib/userListingSync';
+
+const MAX_OWNER_LISTINGS = 3;
 
 export const dynamic = 'force-dynamic';
 
-const REQUIRED_FIELDS = ['sellerType', 'listingType', 'district', 'title', 'priceType'];
+const REQUIRED_FIELDS = ['listingType', 'district', 'title', 'priceType'];
 
 // GET /api/user-listings — the current user's own submissions (any status)
 export const GET = async () => {
@@ -45,8 +48,26 @@ export const POST = async (request) => {
       return new Response(JSON.stringify({ message: 'اجاره یا ودیعه الزامی است' }), { status: 400 });
     }
 
+    // Advertiser type is derived from the account, not self-declared. A phone with
+    // more than MAX_OWNER_LISTINGS live listings is acting as an agency and must
+    // register an office account.
+    const adv = await advertiserFor(sessionUser.userId);
+    if (adv.type === 'owner') {
+      const active = await UserListing.countDocuments({
+        phone: sessionUser.user.phone,
+        status: { $in: ['pending', 'approved'] },
+      });
+      if (active >= MAX_OWNER_LISTINGS) {
+        return new Response(
+          JSON.stringify({ message: 'برای ثبت بیش از ۳ آگهی باید حساب آژانس املاک ثبت و تایید شده باشد' }),
+          { status: 403 }
+        );
+      }
+    }
+
     const listing = await UserListing.create({
       ...body,
+      sellerType: adv.type === 'office' ? 'agent' : 'owner',
       userId: sessionUser.userId,
       phone: sessionUser.user.phone,
       status: 'pending',

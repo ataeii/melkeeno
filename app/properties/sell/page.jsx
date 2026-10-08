@@ -9,8 +9,7 @@ import { fetchMeta } from '@/lib/api';
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), { ssr: false });
 
 const initialForm = {
-  sellerType: 'owner',
-  listingType: 'buy',
+    listingType: 'buy',
   district: '',
   address: '',
   lat: null,
@@ -126,179 +125,11 @@ const SellPage = () => {
       </p>
 
       <form onSubmit={handleSubmit} className='bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-6'>
-        {/* Seller type */}
-        <div>
-          <label className={labelClass}>شما مالک هستید یا مشاور املاک؟</label>
-          <div className='flex gap-2'>
-            {[
-              { v: 'owner', l: 'مالک' },
-              { v: 'agent', l: 'مشاور املاک' },
-            ].map(({ v, l }) => (
-              <button
-                type='button'
-                key={v}
-                onClick={() => set('sellerType')(v)}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  form.sellerType === v ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Listing type */}
-        <div>
-          <label className={labelClass}>نوع آگهی</label>
-          <div className='flex gap-2'>
-            {[
-              { v: 'buy', l: 'فروش' },
-              { v: 'rent', l: 'اجاره' },
-            ].map(({ v, l }) => (
-              <button
-                type='button'
-                key={v}
-                onClick={() => set('listingType')(v)}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  form.listingType === v ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Title */}
-        <div>
-          <label className={labelClass}>عنوان آگهی</label>
-          <input
-            type='text'
-            value={form.title}
-            onChange={set('title')}
-            placeholder='مثلاً: آپارتمان ۸۰ متری دو خواب در پونک'
-            className={inputClass}
-          />
-        </div>
-
-        {/* District + address */}
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-          <div>
-            <label className={labelClass}>محله</label>
-            <input
-              type='text'
-              list='district-options'
-              value={form.district}
-              onChange={set('district')}
-              className={inputClass}
-            />
-            <datalist id='district-options'>
-              {districts.map((d) => (
-                <option key={d} value={d} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label className={labelClass}>آدرس دقیق (اختیاری)</label>
-            <input type='text' value={form.address} onChange={set('address')} className={inputClass} />
-          </div>
-        </div>
-
-        {/* Location picker */}
-        <div>
-          <label className={labelClass}>موقعیت روی نقشه (اختیاری — روی نقشه کلیک کنید)</label>
-          <div className='h-64 rounded-lg overflow-hidden border border-gray-200'>
-            <LocationPicker lat={form.lat} lng={form.lng} onChange={(lat, lng) => setForm((p) => ({ ...p, lat, lng }))} />
-          </div>
-        </div>
-
-        {/* Specs */}
-        <div className='grid grid-cols-2 sm:grid-cols-3 gap-4'>
-          <div>
-            <label className={labelClass}>متراژ (متر مربع)</label>
-            <input type='number' value={form.areaM2} onChange={set('areaM2')} className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>تعداد اتاق</label>
-            <input type='number' value={form.rooms} onChange={set('rooms')} className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>طبقه</label>
-            <input type='number' value={form.floor} onChange={set('floor')} className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>تعداد کل طبقات</label>
-            <input type='number' value={form.totalFloors} onChange={set('totalFloors')} className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>سال ساخت</label>
-            <input type='number' value={form.yearBuilt} onChange={set('yearBuilt')} className={inputClass} />
-          </div>
-        </div>
-
-        {/* Amenities */}
-        <div>
-          <label className={labelClass}>امکانات</label>
-          <div className='flex flex-wrap gap-3'>
-            {[
-              { k: 'hasParking', l: 'پارکینگ' },
-              { k: 'hasElevator', l: 'آسانسور' },
-              { k: 'hasWarehouse', l: 'انباری' },
-              { k: 'hasBalcony', l: 'بالکن' },
-              { k: 'isFurnished', l: 'مبله' },
-              { k: 'hasPool', l: 'استخر' },
-              { k: 'hasJacuzzi', l: 'جکوزی' },
-              { k: 'hasSauna', l: 'سونا' },
-              { k: 'hasRooftop', l: 'روف تاپ / پشت‌بام' },
-            ].map(({ k, l }) => (
-              <label key={k} className='flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-1.5 cursor-pointer'>
-                <input type='checkbox' checked={form[k]} onChange={set(k)} />
-                {l}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Price */}
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-          {form.listingType === 'buy' ? (
-            <div>
-              <label className={labelClass}>قیمت (تومان)</label>
-              <input type='number' value={form.price} onChange={set('price')} className={inputClass} />
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className={labelClass}>اجاره ماهانه (تومان)</label>
-                <input type='number' value={form.rent} onChange={set('rent')} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>ودیعه (تومان)</label>
-                <input type='number' value={form.deposit} onChange={set('deposit')} className={inputClass} />
-              </div>
-            </>
-          )}
-          <div>
-            <label className={labelClass}>قیمت ثابت است یا قابل مذاکره؟</label>
-            <div className='flex gap-2'>
-              {[
-                { v: 'fixed', l: 'ثابت' },
-                { v: 'negotiable', l: 'قابل مذاکره' },
-              ].map(({ v, l }) => (
-                <button
-                  type='button'
-                  key={v}
-                  onClick={() => set('priceType')(v)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    form.priceType === v ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Advertiser type is set by the account, not by the poster */}
+        <div className='bg-blue-50 text-blue-800 text-sm rounded-lg p-3 leading-6'>
+          نوع آگهی‌دهنده بر اساس حساب شما تعیین می‌شود: اگر دفتر املاک شما در بخش «پروفایل ← دفتر املاک» ثبت و
+          تایید شده باشد، آگهی با نشان «آژانس املاک» منتشر می‌شود؛ در غیر این صورت با نشان «مالک».
+          هر شماره حداکثر ۳ آگهی فعال می‌تواند داشته باشد.
         </div>
 
         {/* Trade interest */}

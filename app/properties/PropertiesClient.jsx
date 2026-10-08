@@ -21,12 +21,13 @@ const FILTER_DEFAULTS = {
   // is mostly noise.
   market: '',
   sure: true,
+  advertiser: '', // '' | 'owner' | 'office' (first-party listings only)
   sort: 'price_asc',
 };
 
 // Keys that count toward the "فیلترها (N)" badge -- listing_type and sort
 // are always "set" to something by design, so they don't count as refinements.
-const REFINEMENT_KEYS = ['district', 'rooms', 'min_area', 'min_price', 'max_price', 'amenities', 'market'];
+const REFINEMENT_KEYS = ['district', 'rooms', 'min_area', 'min_price', 'max_price', 'amenities', 'market', 'advertiser'];
 
 const AMENITY_OPTIONS = [
   { key: 'parking', label: 'پارکینگ' },
@@ -54,6 +55,7 @@ const buildParams = (filters) => {
   if (filters.min_price) params.min_price = filters.min_price;
   if (filters.max_price) params.max_price = filters.max_price;
   if (filters.amenities.length > 0) params.amenities = filters.amenities.join(',');
+  if (filters.advertiser) params.advertiser = filters.advertiser;
   // Short-term rentals have no market verdict.
   if (filters.market && params.listing_type !== 'short_term') {
     params.market = filters.market;
@@ -72,7 +74,10 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
   // just for being rich), 'price' = absolute cheapest -> priciest.
   const [colorMode, setColorMode] = useState('market');
   const requestId = useRef(0);
-  const [districts, setDistricts] = useState(initialDistricts);
+  // English slugs are raw Kilid URL fragments, not neighbourhood names.
+  const cleanDistricts = (list) => list.filter((d) => d && !/[A-Za-z]/.test(d)).map((d) => d.trim());
+  const [districts, setDistricts] = useState(cleanDistricts(initialDistricts));
+  const [districtText, setDistrictText] = useState('');
   const [activeToken, setActiveToken] = useState(null);
   const [hoveredToken, setHoveredToken] = useState(null);
   const [filters, setFilters] = useState(FILTER_DEFAULTS);
@@ -88,7 +93,7 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
     if (initialDistricts.length) return;
     fetchMeta()
       .then((data) => {
-        if (data.districts) setDistricts(data.districts);
+        if (data.districts) setDistricts(cleanDistricts(data.districts));
       })
       .catch(() => {});
   }, [initialDistricts.length]);
@@ -272,7 +277,7 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
             <option value='price_asc'>ارزان‌ترین</option>
             <option value='price_desc'>گران‌ترین</option>
             <option value='area_desc'>بزرگ‌ترین</option>
-            {filters.listing_type !== 'short_term' && <option value='discount'>بیشترین تخفیف نسبت به بازار</option>}
+            {filters.listing_type !== 'short_term' && <option value='discount'>مناسب‌ترین قیمت</option>}
           </select>
 
           {/* فیلترها (باز/بسته) */}
@@ -308,19 +313,25 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
         {/* Collapsible refinement panel */}
         {filtersOpen && (
           <div className='px-4 pb-3 pt-1 border-t border-gray-100 flex flex-wrap items-center gap-2'>
-            {/* محله */}
-            <select
-              className={selectClass}
-              value={filters.district}
-              onChange={(e) => handleFilterChange('district', e.target.value)}
-            >
-              <option value=''>همه محله‌ها</option>
+            {/* محله -- type to narrow the list; empty = all */}
+            <input
+              type='text'
+              list='district-options'
+              placeholder='جستجوی محله…'
+              className={`${selectClass} w-44`}
+              value={districtText}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDistrictText(v);
+                if (!v.trim()) handleFilterChange('district', '');
+                else if (districts.includes(v.trim())) handleFilterChange('district', v.trim());
+              }}
+            />
+            <datalist id='district-options'>
               {districts.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
+                <option key={d} value={d} />
               ))}
-            </select>
+            </datalist>
 
             {/* اتاق */}
             <select
@@ -358,17 +369,31 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
               onChange={(e) => handleFilterChange('min_price', e.target.value)}
             />
 
-            {/* حداکثر قیمت */}
-            <select
-              className={selectClass}
+            {/* حداکثر قیمت -- type any value, or pick a preset */}
+            <input
+              type='number'
+              inputMode='numeric'
+              list='max-price-presets'
+              placeholder='حداکثر قیمت (تومان)'
+              className={`${selectClass} w-40`}
               value={filters.max_price}
               onChange={(e) => handleFilterChange('max_price', e.target.value)}
-            >
-              <option value=''>همه قیمت‌ها</option>
+            />
+            <datalist id='max-price-presets'>
               <option value='5000000000'>تا ۵ میلیارد</option>
               <option value='10000000000'>تا ۱۰ میلیارد</option>
               <option value='20000000000'>تا ۲۰ میلیارد</option>
               <option value='50000000000'>تا ۵۰ میلیارد</option>
+            </datalist>
+
+            <select
+              className={selectClass}
+              value={filters.advertiser}
+              onChange={(e) => handleFilterChange('advertiser', e.target.value)}
+            >
+              <option value=''>آگهی‌دهنده: همه</option>
+              <option value='owner'>مالک</option>
+              <option value='office'>آژانس املاک</option>
             </select>
 
             {/* قیمت نسبت به بازار -- only buy/rent listings have a verdict */}

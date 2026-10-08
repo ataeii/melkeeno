@@ -1,4 +1,5 @@
 'use client';
+import { advertiserBadge, BADGE_CLASS } from '@/lib/advertiser';
 import Link from 'next/link';
 import { FaBed, FaRulerCombined, FaBuilding, FaUserFriends } from 'react-icons/fa';
 import BookmarkToggle from './BookmarkToggle';
@@ -223,7 +224,7 @@ const PropertyCard = ({ property, onClick, className }) => {
           >
             مشاهده جزئیات
           </Link>
-          {property.url && (
+          {property.url && property.source !== 'user' && (
             <a
               href={property.url}
               target='_blank'
@@ -235,9 +236,14 @@ const PropertyCard = ({ property, onClick, className }) => {
             </a>
           )}
         </div>
-        {property.agency_name && (
-          <p className='text-[11px] text-gray-400 truncate mt-1.5'>{property.agency_name}</p>
-        )}
+        {(() => {
+          const b = advertiserBadge(property);
+          return b ? (
+            <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-1.5 ${BADGE_CLASS[b.kind]}`}>
+              {b.text}
+            </span>
+          ) : null;
+        })()}
       </div>
     </div>
   );

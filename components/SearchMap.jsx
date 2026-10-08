@@ -2,6 +2,7 @@
 import { useRef, useState, useCallback, useMemo } from 'react';
 import Map, { Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
 import { houseSummary } from '@/lib/houseSummary';
+import { advertiserBadge, BADGE_COLOR } from '@/lib/advertiser';
 
 function formatPriceBubble(listing) {
   const price = listing.listing_type === 'rent' ? listing.rent : listing.price;
@@ -242,6 +243,16 @@ const SearchMap = ({
             </span>
             <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{sum.label}</div>
             <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309', marginTop: '2px' }}>{sum.price}</div>
+            {(() => {
+              const b = advertiserBadge(listing);
+              if (!b) return null;
+              const [bg, fg] = BADGE_COLOR[b.kind];
+              return (
+                <div style={{ marginTop: '4px', fontSize: '10px', fontWeight: 'bold', background: bg, color: fg, borderRadius: '999px', padding: '1px 8px', display: 'inline-block' }}>
+                  {b.text}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </Marker>
@@ -366,7 +377,17 @@ const SearchMap = ({
                 📍 {activeListing.district}
               </div>
             )}
-            {activeListing.url && (
+            {(() => {
+              const b = advertiserBadge(activeListing);
+              if (!b) return null;
+              const [bg, fg] = BADGE_COLOR[b.kind];
+              return (
+                <div style={{ marginBottom: '6px', fontSize: '11px', fontWeight: 'bold', background: bg, color: fg, borderRadius: '999px', padding: '1px 8px', display: 'inline-block' }}>
+                  {b.text}
+                </div>
+              );
+            })()}
+            {activeListing.url && activeListing.source !== 'user' && (
               <a
                 href={activeListing.url}
                 target='_blank'
