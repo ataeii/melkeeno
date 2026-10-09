@@ -387,6 +387,12 @@ const SearchMap = ({
                 </div>
               );
             })()}
+            <a
+              href={`/properties/listing/${activeListing.token}`}
+              style={{ display: 'block', textAlign: 'center', background: '#2563eb', color: '#fff', fontSize: '13px', fontWeight: 'bold', borderRadius: '8px', padding: '8px 0', marginBottom: '6px' }}
+            >
+              مشاهده جزئیات
+            </a>
             {activeListing.url && activeListing.source !== 'user' && (
               <a
                 href={activeListing.url}

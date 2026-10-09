@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import PropertyCard from '@/components/PropertyCard';
 import { fetchListingsPage, fetchListingPoints, fetchListing, fetchMeta, nearbyServices } from '@/lib/api';
 import { FaHospital, FaSchool, FaTimes } from 'react-icons/fa';
@@ -65,6 +66,7 @@ const buildParams = (filters) => {
 };
 
 const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistricts = [] }) => {
+  const router = useRouter();
   const [listings, setListings] = useState(initialListings);
   const [total, setTotal] = useState(initialTotal || initialListings.length);
   const [points, setPoints] = useState([]);
@@ -243,6 +245,11 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
   };
 
   const handleCardClick = (token) => {
+    // On phones there is no side-by-side map, so tapping a card opens its details.
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      router.push(`/properties/listing/${token}`);
+      return;
+    }
     setActiveToken(token);
   };
 
