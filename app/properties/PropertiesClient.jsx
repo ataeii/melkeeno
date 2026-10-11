@@ -583,7 +583,7 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
               <div>
                 <div className='flex items-center gap-2'>
                   <span>ارزان‌تر از محله</span>
-                  <i className='inline-block h-2 w-24 rounded' style={{ background: 'linear-gradient(to left, hsl(0,70%,28%), hsl(68,70%,28%), hsl(135,70%,28%))' }} />
+                  <i className='inline-block h-2 w-24 rounded' style={{ background: 'linear-gradient(to left, hsl(135,70%,28%), hsl(68,70%,28%), hsl(0,70%,28%))' }} />
                   <span>گران‌تر از محله</span>
                 </div>
                 <p className='mt-1 text-gray-400 max-w-[250px] leading-relaxed'>
@@ -593,7 +593,7 @@ const PropertiesClient = ({ initialListings = [], initialTotal = 0, initialDistr
             ) : (
               <div className='flex items-center gap-2'>
                 <span>ارزان‌ترین</span>
-                <i className='inline-block h-2 w-24 rounded' style={{ background: 'linear-gradient(to left, hsl(0,70%,28%), hsl(68,70%,28%), hsl(135,70%,28%))' }} />
+                <i className='inline-block h-2 w-24 rounded' style={{ background: 'linear-gradient(to left, hsl(135,70%,28%), hsl(68,70%,28%), hsl(0,70%,28%))' }} />
                 <span>گران‌ترین</span>
               </div>
             )}
