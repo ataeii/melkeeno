@@ -55,11 +55,11 @@ export default async function sitemap() {
     // API is briefly unreachable -- fall back to the static/article URLs.
   }
 
-  // The 147 /schools/[id] pages have had their own metadata since 09-19
-  // but were never listed here.
+  // The /schools/[id] pages (147 originally, ~1,860 after the 2026-10-12
+  // ostadbank merge) have their own metadata.
   let schoolUrls = [];
   try {
-    const res = await fetch(`${API}/api/schools?limit=500`, { cache: 'no-store' });
+    const res = await fetch(`${API}/api/schools?limit=5000`, { cache: 'no-store' });
     if (res.ok) {
       const schools = await res.json();
       schoolUrls = (Array.isArray(schools) ? schools : []).map((s) => ({
