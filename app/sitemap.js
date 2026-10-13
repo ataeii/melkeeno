@@ -59,7 +59,7 @@ export default async function sitemap() {
   // ostadbank merge) have their own metadata.
   let schoolUrls = [];
   try {
-    const res = await fetch(`${API}/api/schools?limit=5000`, { cache: 'no-store' });
+    const res = await fetch(`${API}/api/schools?limit=10000`, { cache: 'no-store' });
     if (res.ok) {
       const schools = await res.json();
       schoolUrls = (Array.isArray(schools) ? schools : []).map((s) => ({
